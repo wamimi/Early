@@ -112,11 +112,13 @@ function Header() {
 function IdleView({
   tweetUrl,
   setTweetUrl,
-  onSubmit
+  onSubmit,
+  proofError
 }: {
   tweetUrl: string;
   setTweetUrl: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  proofError: string;
 }) {
   return (
     <motion.section
@@ -178,12 +180,17 @@ function IdleView({
             Generate Proof
           </button>
         </div>
+        {proofError && (
+          <p className="mt-4 max-w-2xl font-mono text-xs uppercase tracking-[0.16em] text-apothecary-lotus">
+            {proofError}
+          </p>
+        )}
       </form>
     </motion.section>
   );
 }
 
-function LoadingView({ stage, progress }: { stage: ProofStage; progress: number }) {
+function LoadingView({ stage, progress, liveStatus }: { stage: ProofStage; progress: number; liveStatus: string }) {
   const isFhe = stage.state === "fhe";
 
   return (
@@ -202,6 +209,7 @@ function LoadingView({ stage, progress }: { stage: ProofStage; progress: number 
             <h2 className="mt-5 max-w-3xl text-3xl font-semibold leading-tight text-receipt-bone sm:text-5xl">
               {stage.caption}
             </h2>
+            {liveStatus && <p className="mt-5 max-w-2xl font-mono text-xs uppercase tracking-[0.16em] text-zinc-400">{liveStatus}</p>}
           </div>
           <div className="relative h-16 w-16 shrink-0 rounded-full border border-white/10 bg-white/[0.04]">
             <div className="absolute inset-2 animate-spin-soft rounded-full border border-transparent border-t-apothecary-neon" />
@@ -305,6 +313,8 @@ export default function Home() {
   const [proofState, setProofState] = useState<ProofState>("idle");
   const [tweetUrl, setTweetUrl] = useState("");
   const [progress, setProgress] = useState(0);
+  const [proofError, setProofError] = useState("");
+  const [liveStatus, setLiveStatus] = useState("");
 
   const activeStage = useMemo(() => {
     if (proofState === "zktls" || proofState === "fhe") {
@@ -350,20 +360,56 @@ export default function Home() {
     return undefined;
   }, [proofState]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!tweetUrl.trim()) {
       return;
     }
 
+    setProofError("");
+    setLiveStatus("Preparing Reclaim verification session...");
     setProgress(0);
     setProofState("zktls");
+
+    const verificationWindow = window.open("about:blank", "_blank");
+
+    try {
+      const response = await fetch("/api/reclaim/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ tweetUrl })
+      });
+
+      const payload = (await response.json()) as { requestUrl?: string; error?: string };
+
+      if (!response.ok || !payload.requestUrl) {
+        throw new Error(payload.error ?? "Reclaim verification could not be started.");
+      }
+
+      setLiveStatus("Reclaim verification opened. Complete it in the new tab, then return to Early.");
+      if (verificationWindow) {
+        verificationWindow.location.href = payload.requestUrl;
+      } else {
+        window.open(payload.requestUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (error) {
+      verificationWindow?.close();
+      const message = error instanceof Error ? error.message : "Reclaim verification could not be started.";
+      setProofError(message);
+      setLiveStatus("");
+      setProgress(0);
+      setProofState("idle");
+    }
   }
 
   function handleReset() {
     setTweetUrl("");
     setProgress(0);
+    setProofError("");
+    setLiveStatus("");
     setProofState("idle");
   }
 
@@ -372,8 +418,8 @@ export default function Home() {
       <AmbientField />
       <Header />
       <AnimatePresence mode="wait">
-        {proofState === "idle" && <IdleView tweetUrl={tweetUrl} setTweetUrl={setTweetUrl} onSubmit={handleSubmit} />}
-        {activeStage && <LoadingView stage={activeStage} progress={progress} />}
+        {proofState === "idle" && <IdleView tweetUrl={tweetUrl} setTweetUrl={setTweetUrl} onSubmit={handleSubmit} proofError={proofError} />}
+        {activeStage && <LoadingView stage={activeStage} progress={progress} liveStatus={liveStatus} />}
         {proofState === "verified" && <VerifiedView onReset={handleReset} />}
       </AnimatePresence>
     </main>
