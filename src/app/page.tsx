@@ -190,7 +190,19 @@ function IdleView({
   );
 }
 
-function LoadingView({ stage, progress, liveStatus }: { stage: ProofStage; progress: number; liveStatus: string }) {
+function LoadingView({
+  stage,
+  progress,
+  liveStatus,
+  reclaimUrl,
+  onReset
+}: {
+  stage: ProofStage;
+  progress: number;
+  liveStatus: string;
+  reclaimUrl: string;
+  onReset: () => void;
+}) {
   const isFhe = stage.state === "fhe";
 
   return (
@@ -210,6 +222,23 @@ function LoadingView({ stage, progress, liveStatus }: { stage: ProofStage; progr
               {stage.caption}
             </h2>
             {liveStatus && <p className="mt-5 max-w-2xl font-mono text-xs uppercase tracking-[0.16em] text-zinc-400">{liveStatus}</p>}
+            {reclaimUrl && (
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <a
+                  href={reclaimUrl}
+                  className="focus-garden rounded-full bg-receipt-bone px-5 py-3 text-sm font-semibold text-receipt-ink transition duration-300 hover:bg-white"
+                >
+                  Open Reclaim verification
+                </a>
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="focus-garden rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:border-apothecary-sage/40 hover:text-apothecary-mint"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
           <div className="relative h-16 w-16 shrink-0 rounded-full border border-white/10 bg-white/[0.04]">
             <div className="absolute inset-2 animate-spin-soft rounded-full border border-transparent border-t-apothecary-neon" />
@@ -315,6 +344,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [proofError, setProofError] = useState("");
   const [liveStatus, setLiveStatus] = useState("");
+  const [reclaimUrl, setReclaimUrl] = useState("");
 
   const activeStage = useMemo(() => {
     if (proofState === "zktls" || proofState === "fhe") {
@@ -339,27 +369,6 @@ export default function Home() {
     return () => window.clearInterval(interval);
   }, [activeStage]);
 
-  useEffect(() => {
-    if (proofState === "zktls") {
-      const timer = window.setTimeout(() => {
-        setProofState("fhe");
-      }, 1850);
-
-      return () => window.clearTimeout(timer);
-    }
-
-    if (proofState === "fhe") {
-      const timer = window.setTimeout(() => {
-        setProofState("verified");
-        setProgress(100);
-      }, 2350);
-
-      return () => window.clearTimeout(timer);
-    }
-
-    return undefined;
-  }, [proofState]);
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -368,11 +377,10 @@ export default function Home() {
     }
 
     setProofError("");
+    setReclaimUrl("");
     setLiveStatus("Preparing Reclaim verification session...");
     setProgress(0);
     setProofState("zktls");
-
-    const verificationWindow = window.open("about:blank", "_blank");
 
     try {
       const response = await fetch("/api/reclaim/start", {
@@ -389,17 +397,14 @@ export default function Home() {
         throw new Error(payload.error ?? "Reclaim verification could not be started.");
       }
 
-      setLiveStatus("Reclaim verification opened. Complete it in the new tab, then return to Early.");
-      if (verificationWindow) {
-        verificationWindow.location.href = payload.requestUrl;
-      } else {
-        window.open(payload.requestUrl, "_blank", "noopener,noreferrer");
-      }
+      setReclaimUrl(payload.requestUrl);
+      setLiveStatus("Redirecting to Reclaim verification...");
+      window.location.assign(payload.requestUrl);
     } catch (error) {
-      verificationWindow?.close();
       const message = error instanceof Error ? error.message : "Reclaim verification could not be started.";
       setProofError(message);
       setLiveStatus("");
+      setReclaimUrl("");
       setProgress(0);
       setProofState("idle");
     }
@@ -410,6 +415,7 @@ export default function Home() {
     setProgress(0);
     setProofError("");
     setLiveStatus("");
+    setReclaimUrl("");
     setProofState("idle");
   }
 
@@ -419,7 +425,7 @@ export default function Home() {
       <Header />
       <AnimatePresence mode="wait">
         {proofState === "idle" && <IdleView tweetUrl={tweetUrl} setTweetUrl={setTweetUrl} onSubmit={handleSubmit} proofError={proofError} />}
-        {activeStage && <LoadingView stage={activeStage} progress={progress} liveStatus={liveStatus} />}
+        {activeStage && <LoadingView stage={activeStage} progress={progress} liveStatus={liveStatus} reclaimUrl={reclaimUrl} onReset={handleReset} />}
         {proofState === "verified" && <VerifiedView onReset={handleReset} />}
       </AnimatePresence>
     </main>
