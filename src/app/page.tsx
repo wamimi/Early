@@ -8,12 +8,27 @@ import gsap from "gsap";
 type ProofState = "idle" | "zktls" | "fhe" | "verified";
 type ProofSessionStatus = "pending" | "succeeded" | "failed";
 
+type EarlyProofArtifact = {
+  version: "early-proof-artifact/v1";
+  platform: "x";
+  sessionId: string;
+  parentContentId: string | null;
+  replyContentId: string | null;
+  replyTimestamp: string | null;
+  replyTimestampUnix: number | null;
+  screenName: string | null;
+  proofHash: string;
+  identityHash: string | null;
+  publicCommitment: string;
+};
+
 type ProofSessionResponse = {
   sessionId: string;
   tweetId: string;
   tweetUrl: string;
   status: ProofSessionStatus;
   extractedParameters: Record<string, string> | null;
+  proofArtifact: EarlyProofArtifact | null;
   errorMessage: string | null;
   completedAt: string | null;
 };
@@ -55,12 +70,15 @@ function readInitialSessionId() {
 
 function getCardRows(session: ProofSessionResponse | null) {
   const parameters = session?.extractedParameters;
-  const identity = parameters?.screen_name ?? parameters?.in_reply_to_screen_name ?? "@alex_web3";
-  const timestamp = parameters?.created_at ?? "1741824840";
+  const artifact = session?.proofArtifact;
+  const identity = artifact?.screenName ?? parameters?.screen_name ?? parameters?.in_reply_to_screen_name ?? "unknown";
+  const timestamp = artifact?.replyTimestamp ?? parameters?.created_at ?? "pending";
+  const commitment = artifact?.publicCommitment ? `${artifact.publicCommitment.slice(0, 19)}...${artifact.publicCommitment.slice(-8)}` : "pending";
 
   return [
-    ["Identity Target", `${identity} (Blinded)`],
-    ["Discovery Timestamp", `${timestamp} (Hidden)`]
+    ["Identity Target", `@${identity.replace(/^@/, "")} (Blinded)`],
+    ["Discovery Timestamp", `${timestamp} (Hidden)`],
+    ["Public Commitment", commitment]
   ] as const;
 }
 

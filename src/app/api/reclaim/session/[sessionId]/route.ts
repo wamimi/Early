@@ -23,6 +23,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ se
       tweetUrl: session.tweet_url,
       status: session.status,
       extractedParameters: session.extracted_parameters,
+      proofArtifact: session.proof_artifact,
       errorMessage: session.error_message,
       createdAt: session.created_at,
       updatedAt: session.updated_at,

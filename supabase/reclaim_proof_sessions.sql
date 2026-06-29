@@ -7,11 +7,15 @@ create table if not exists public.reclaim_proof_sessions (
   status text not null default 'pending' check (status in ('pending', 'succeeded', 'failed')),
   proof_payload jsonb,
   extracted_parameters jsonb,
+  proof_artifact jsonb,
   error_message text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   completed_at timestamptz
 );
+
+alter table public.reclaim_proof_sessions
+  add column if not exists proof_artifact jsonb;
 
 create index if not exists reclaim_proof_sessions_status_idx
   on public.reclaim_proof_sessions (status);

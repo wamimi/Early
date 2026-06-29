@@ -9,6 +9,7 @@ export type ProofSession = {
   status: ProofSessionStatus;
   proof_payload: unknown | null;
   extracted_parameters: unknown | null;
+  proof_artifact: unknown | null;
   error_message: string | null;
   created_at: string;
   updated_at: string;
@@ -28,6 +29,7 @@ export type CompleteProofSessionInput = {
   status: Extract<ProofSessionStatus, "succeeded" | "failed">;
   proofPayload: unknown;
   extractedParameters?: unknown;
+  proofArtifact?: unknown;
   errorMessage?: string;
 };
 
@@ -97,6 +99,7 @@ export async function completeProofSession(input: CompleteProofSessionInput) {
       status: input.status,
       proof_payload: input.proofPayload,
       extracted_parameters: input.extractedParameters ?? null,
+      proof_artifact: input.proofArtifact ?? null,
       error_message: input.errorMessage ?? null,
       completed_at: new Date().toISOString()
     })
@@ -120,6 +123,7 @@ export async function getProofSession(sessionId: string) {
     "status_url",
     "status",
     "extracted_parameters",
+    "proof_artifact",
     "error_message",
     "created_at",
     "updated_at",

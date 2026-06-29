@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { type Proof, verifyProof } from "@reclaimprotocol/js-sdk";
+import { createEarlyProofArtifact } from "@/lib/early-proof-artifact";
 import { completeProofSession } from "@/lib/supabase-proof-sessions";
 
 export const runtime = "nodejs";
@@ -213,6 +214,13 @@ export async function POST(request: NextRequest) {
 
   const verification = await verifyReclaimProofs(proofs);
   const extractedParameters = verification.extractedParameters ?? getExtractedParameters(body, proofs);
+  const proofArtifact = verification.isVerified
+    ? createEarlyProofArtifact({
+        sessionId,
+        proofPayload: body,
+        extractedParameters
+      })
+    : null;
 
   try {
     await completeProofSession({
@@ -220,6 +228,7 @@ export async function POST(request: NextRequest) {
       status: verification.isVerified ? "succeeded" : "failed",
       proofPayload: body,
       extractedParameters,
+      proofArtifact,
       errorMessage: verification.errorMessage
     });
   } catch (error) {
