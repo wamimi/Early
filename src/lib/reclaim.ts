@@ -4,19 +4,24 @@ export type ReclaimStartInput = {
 };
 
 export type ReclaimStartResult = {
+  sessionId: string;
   requestUrl: string;
   statusUrl?: string;
   configJson?: string;
   callbackUrl: string;
+  redirectUrl: string;
   tweetId: string;
 };
 
 type ReclaimRequest = {
-  setAppCallbackUrl?: (url: string) => Promise<void> | void;
+  setAppCallbackUrl?: (url: string, jsonProofResponse?: boolean) => Promise<void> | void;
+  setRedirectUrl?: (url: string) => Promise<void> | void;
+  setCancelRedirectUrl?: (url: string) => Promise<void> | void;
   addContext?: (context: string, message?: string) => Promise<void> | void;
   setParams?: (params: Record<string, string>) => Promise<void> | void;
   getRequestUrl?: () => Promise<string> | string;
   getStatusUrl?: () => Promise<string> | string;
+  getSessionId?: () => string;
   toJsonString?: () => string;
 };
 
@@ -71,8 +76,17 @@ export async function createReclaimProofRequest(input: ReclaimStartInput): Promi
   }
 
   const proofRequest = await ReclaimProofRequest.init(appId, appSecret, providerId);
+  const sessionId = proofRequest.getSessionId?.();
 
-  await proofRequest.setAppCallbackUrl?.(callbackUrl);
+  if (!sessionId) {
+    throw new Error("Reclaim SDK did not return a session id.");
+  }
+
+  const redirectUrl = `${appUrl}/?sessionId=${encodeURIComponent(sessionId)}`;
+
+  await proofRequest.setAppCallbackUrl?.(callbackUrl, true);
+  await proofRequest.setRedirectUrl?.(redirectUrl);
+  await proofRequest.setCancelRedirectUrl?.(redirectUrl);
   await proofRequest.addContext?.(
     JSON.stringify({
       product: "Early",
@@ -99,10 +113,12 @@ export async function createReclaimProofRequest(input: ReclaimStartInput): Promi
   const configJson = proofRequest.toJsonString?.();
 
   return {
+    sessionId,
     requestUrl,
     statusUrl,
     configJson,
     callbackUrl,
+    redirectUrl,
     tweetId
   };
 }
