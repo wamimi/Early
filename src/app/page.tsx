@@ -6,6 +6,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import gsap from "gsap";
 
 type ProofState = "idle" | "zktls" | "fhe" | "verified";
+type ProofSessionStatus = "pending" | "succeeded" | "failed";
+
+type ProofSessionResponse = {
+  sessionId: string;
+  tweetId: string;
+  tweetUrl: string;
+  status: ProofSessionStatus;
+  extractedParameters: Record<string, string> | null;
+  errorMessage: string | null;
+  completedAt: string | null;
+};
 
 type ProofStage = {
   state: Extract<ProofState, "zktls" | "fhe">;
@@ -31,10 +42,27 @@ const stages: Record<"zktls" | "fhe", ProofStage> = {
   }
 };
 
-const cardRows = [
-  ["Identity Target", "@alex_web3 (Blinded)"],
-  ["Discovery Timestamp", "1741824840 (Hidden)"]
-] as const;
+const sessionStorageKey = "early.reclaim.sessionId";
+
+function readInitialSessionId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("sessionId") ?? window.localStorage.getItem(sessionStorageKey) ?? "";
+}
+
+function getCardRows(session: ProofSessionResponse | null) {
+  const parameters = session?.extractedParameters;
+  const identity = parameters?.screen_name ?? parameters?.in_reply_to_screen_name ?? "@alex_web3";
+  const timestamp = parameters?.created_at ?? "1741824840";
+
+  return [
+    ["Identity Target", `${identity} (Blinded)`],
+    ["Discovery Timestamp", `${timestamp} (Hidden)`]
+  ] as const;
+}
 
 function AmbientField() {
   const fieldRef = useRef<HTMLDivElement>(null);
@@ -271,7 +299,9 @@ function LoadingView({
   );
 }
 
-function VerifiedView({ onReset }: { onReset: () => void }) {
+function VerifiedView({ onReset, session }: { onReset: () => void; session: ProofSessionResponse | null }) {
+  const rows = getCardRows(session);
+
   return (
     <motion.section
       key="verified"
@@ -306,7 +336,7 @@ function VerifiedView({ onReset }: { onReset: () => void }) {
           </div>
 
           <div className="relative z-10 mt-12 space-y-3">
-            {cardRows.map(([label, value]) => (
+            {rows.map(([label, value]) => (
               <div key={label} className="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
                 <span className="font-mono text-xs uppercase tracking-[0.2em] text-zinc-500">{label} -&gt;</span>
                 <span className="font-mono text-sm text-zinc-100 sm:text-base">{value}</span>
@@ -339,12 +369,15 @@ function VerifiedView({ onReset }: { onReset: () => void }) {
 }
 
 export default function Home() {
-  const [proofState, setProofState] = useState<ProofState>("idle");
+  const [initialSessionId] = useState(readInitialSessionId);
+  const [proofState, setProofState] = useState<ProofState>(() => (initialSessionId ? "zktls" : "idle"));
   const [tweetUrl, setTweetUrl] = useState("");
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(() => (initialSessionId ? 40 : 0));
   const [proofError, setProofError] = useState("");
-  const [liveStatus, setLiveStatus] = useState("");
+  const [liveStatus, setLiveStatus] = useState(() => (initialSessionId ? "Waiting for Reclaim proof callback..." : ""));
   const [reclaimUrl, setReclaimUrl] = useState("");
+  const [activeSessionId, setActiveSessionId] = useState(initialSessionId);
+  const [verifiedSession, setVerifiedSession] = useState<ProofSessionResponse | null>(null);
 
   const activeStage = useMemo(() => {
     if (proofState === "zktls" || proofState === "fhe") {
@@ -369,6 +402,90 @@ export default function Home() {
     return () => window.clearInterval(interval);
   }, [activeStage]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.has("sessionId")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activeSessionId || proofState !== "zktls") {
+      return;
+    }
+
+    let pollCount = 0;
+    let isCancelled = false;
+
+    async function pollSession() {
+      pollCount += 1;
+
+      try {
+        const response = await fetch(`/api/reclaim/session/${encodeURIComponent(activeSessionId)}`, {
+          cache: "no-store"
+        });
+        const payload = (await response.json()) as ProofSessionResponse | { error?: string };
+
+        if (!response.ok) {
+          throw new Error("error" in payload && payload.error ? payload.error : "Unable to load Reclaim proof session.");
+        }
+
+        if (isCancelled) {
+          return;
+        }
+
+        const session = payload as ProofSessionResponse;
+
+        if (session.status === "succeeded") {
+          window.localStorage.removeItem(sessionStorageKey);
+          setVerifiedSession(session);
+          setProgress(85);
+          setLiveStatus("Reclaim proof received. Preparing private receipt...");
+          setProofState("fhe");
+
+          window.setTimeout(() => {
+            if (!isCancelled) {
+              setProgress(100);
+              setProofState("verified");
+            }
+          }, 1200);
+          return;
+        }
+
+        if (session.status === "failed") {
+          window.localStorage.removeItem(sessionStorageKey);
+          setProofError(session.errorMessage ?? "Reclaim verification failed. Please try another proof session.");
+          setLiveStatus("");
+          setReclaimUrl("");
+          setProgress(0);
+          setProofState("idle");
+          return;
+        }
+
+        if (pollCount >= 100) {
+          setProofError("Still waiting for the Reclaim callback. You can retry after completing the portal flow.");
+          setLiveStatus("Proof session is still pending.");
+        }
+      } catch (error) {
+        if (isCancelled) {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : "Unable to load Reclaim proof session.";
+        setProofError(message);
+      }
+    }
+
+    pollSession();
+    const interval = window.setInterval(pollSession, 3000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activeSessionId, proofState]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -391,12 +508,14 @@ export default function Home() {
         body: JSON.stringify({ tweetUrl })
       });
 
-      const payload = (await response.json()) as { requestUrl?: string; error?: string };
+      const payload = (await response.json()) as { sessionId?: string; requestUrl?: string; error?: string };
 
-      if (!response.ok || !payload.requestUrl) {
+      if (!response.ok || !payload.requestUrl || !payload.sessionId) {
         throw new Error(payload.error ?? "Reclaim verification could not be started.");
       }
 
+      window.localStorage.setItem(sessionStorageKey, payload.sessionId);
+      setActiveSessionId(payload.sessionId);
       setReclaimUrl(payload.requestUrl);
       setLiveStatus("Redirecting to Reclaim verification...");
       window.location.assign(payload.requestUrl);
@@ -416,6 +535,9 @@ export default function Home() {
     setProofError("");
     setLiveStatus("");
     setReclaimUrl("");
+    setActiveSessionId("");
+    setVerifiedSession(null);
+    window.localStorage.removeItem(sessionStorageKey);
     setProofState("idle");
   }
 
@@ -426,7 +548,7 @@ export default function Home() {
       <AnimatePresence mode="wait">
         {proofState === "idle" && <IdleView tweetUrl={tweetUrl} setTweetUrl={setTweetUrl} onSubmit={handleSubmit} proofError={proofError} />}
         {activeStage && <LoadingView stage={activeStage} progress={progress} liveStatus={liveStatus} reclaimUrl={reclaimUrl} onReset={handleReset} />}
-        {proofState === "verified" && <VerifiedView onReset={handleReset} />}
+        {proofState === "verified" && <VerifiedView onReset={handleReset} session={verifiedSession} />}
       </AnimatePresence>
     </main>
   );
