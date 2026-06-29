@@ -268,23 +268,23 @@ function LoadingView({
               {stage.caption}
             </h2>
             {liveStatus && <p className="mt-5 max-w-2xl font-mono text-xs uppercase tracking-[0.16em] text-zinc-400">{liveStatus}</p>}
-            {reclaimUrl && (
-              <div className="mt-7 flex flex-wrap items-center gap-3">
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              {reclaimUrl && (
                 <a
                   href={reclaimUrl}
                   className="focus-garden rounded-full bg-receipt-bone px-5 py-3 text-sm font-semibold text-receipt-ink transition duration-300 hover:bg-white"
                 >
                   Open Reclaim verification
                 </a>
-                <button
-                  type="button"
-                  onClick={onReset}
-                  className="focus-garden rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:border-apothecary-sage/40 hover:text-apothecary-mint"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
+              )}
+              <button
+                type="button"
+                onClick={onReset}
+                className="focus-garden rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:border-apothecary-sage/40 hover:text-apothecary-mint"
+              >
+                Start over
+              </button>
+            </div>
           </div>
           <div className="relative h-16 w-16 shrink-0 rounded-full border border-white/10 bg-white/[0.04]">
             <div className="absolute inset-2 animate-spin-soft rounded-full border border-transparent border-t-apothecary-neon" />
