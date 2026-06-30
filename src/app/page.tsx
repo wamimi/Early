@@ -511,13 +511,6 @@ export default function Home() {
           setProgress(85);
           setLiveStatus("Reclaim proof received. Preparing private receipt...");
           setProofState("fhe");
-
-          window.setTimeout(() => {
-            if (!isCancelled) {
-              setProgress(100);
-              setProofState("verified");
-            }
-          }, 1200);
           return;
         }
 
@@ -554,6 +547,19 @@ export default function Home() {
       window.clearInterval(interval);
     };
   }, [activeSessionId, proofState]);
+
+  useEffect(() => {
+    if (proofState !== "fhe" || !verifiedSession) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setProgress(100);
+      setProofState("verified");
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [proofState, verifiedSession]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
