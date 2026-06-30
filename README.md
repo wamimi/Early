@@ -213,6 +213,7 @@ RECLAIM_APP_ID=
 RECLAIM_APP_SECRET=
 RECLAIM_PROVIDER_ID=
 RECLAIM_PROVIDER_VERSION=1.0.0
+RECLAIM_REQUIRE_TEE_ATTESTATION=false
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -222,6 +223,7 @@ Notes:
 
 - `RECLAIM_APP_SECRET` must stay server-side.
 - `SUPABASE_SERVICE_ROLE_KEY` must stay server-side.
+- Keep `RECLAIM_REQUIRE_TEE_ATTESTATION=false` while testing mobile verifier flows if Reclaim returns valid proofs without verifier TEE material. Set it to `true` only when the proof route consistently includes valid TEE attestation.
 - For Vercel, set `NEXT_PUBLIC_APP_URL` to the deployed URL, for example `https://early-psi.vercel.app`.
 
 ## Supabase Setup

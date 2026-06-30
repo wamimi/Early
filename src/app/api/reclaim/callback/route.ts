@@ -155,6 +155,10 @@ function getRequiredEnv(name: string) {
   return value;
 }
 
+function shouldRequireTeeAttestation() {
+  return process.env.RECLAIM_REQUIRE_TEE_ATTESTATION === "true";
+}
+
 function isProof(value: unknown): value is Proof {
   return isRecord(value) && typeof value.identifier === "string" && isRecord(value.claimData) && Array.isArray(value.signatures);
 }
@@ -171,13 +175,22 @@ async function verifyReclaimProofs(proofs: unknown[]) {
   }
 
   try {
-    const result = await verifyProof(validProofs, {
+    const verificationConfig: {
+      providerId: string;
+      providerVersion: string;
+      teeAttestation?: { appSecret: string };
+    } = {
       providerId: getRequiredEnv("RECLAIM_PROVIDER_ID"),
-      providerVersion: process.env.RECLAIM_PROVIDER_VERSION ?? "1.0.0",
-      teeAttestation: {
+      providerVersion: process.env.RECLAIM_PROVIDER_VERSION ?? "1.0.0"
+    };
+
+    if (shouldRequireTeeAttestation()) {
+      verificationConfig.teeAttestation = {
         appSecret: getRequiredEnv("RECLAIM_APP_SECRET")
-      }
-    });
+      };
+    }
+
+    const result = await verifyProof(validProofs, verificationConfig);
 
     if (!result.isVerified) {
       return {
