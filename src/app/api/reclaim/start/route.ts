@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       sessionId: proofRequest.sessionId,
       requestUrl: proofRequest.requestUrl,
+      mobileRequestUrl: proofRequest.mobileRequestUrl,
       statusUrl: proofRequest.statusUrl,
       tweetId: proofRequest.tweetId
     });

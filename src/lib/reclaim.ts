@@ -6,6 +6,7 @@ export type ReclaimStartInput = {
 export type ReclaimStartResult = {
   sessionId: string;
   requestUrl: string;
+  mobileRequestUrl: string;
   statusUrl?: string;
   configJson?: string;
   callbackUrl: string;
@@ -19,14 +20,14 @@ type ReclaimRequest = {
   setCancelRedirectUrl?: (url: string) => Promise<void> | void;
   addContext?: (context: string, message?: string) => Promise<void> | void;
   setParams?: (params: Record<string, string>) => Promise<void> | void;
-  getRequestUrl?: () => Promise<string> | string;
+  getRequestUrl?: (options?: { verificationMode?: "portal" | "app" }) => Promise<string> | string;
   getStatusUrl?: () => Promise<string> | string;
   getSessionId?: () => string;
   toJsonString?: () => string;
 };
 
 type ReclaimProofRequestConstructor = {
-  init: (appId: string, appSecret: string, providerId: string) => Promise<ReclaimRequest>;
+  init: (appId: string, appSecret: string, providerId: string, options?: { acceptTeeAttestation?: boolean }) => Promise<ReclaimRequest>;
 };
 
 type ReclaimSdkModule = {
@@ -57,7 +58,15 @@ function getRequiredEnv(name: string) {
 }
 
 function getAppUrl(origin?: string) {
+  if (process.env.NODE_ENV !== "production" && origin) {
+    return origin;
+  }
+
   return process.env.NEXT_PUBLIC_APP_URL ?? origin ?? "http://localhost:3000";
+}
+
+function shouldRequireTeeAttestation() {
+  return process.env.RECLAIM_REQUIRE_TEE_ATTESTATION === "true";
 }
 
 export async function createReclaimProofRequest(input: ReclaimStartInput): Promise<ReclaimStartResult> {
@@ -75,7 +84,9 @@ export async function createReclaimProofRequest(input: ReclaimStartInput): Promi
     throw new Error("ReclaimProofRequest was not exported by @reclaimprotocol/js-sdk.");
   }
 
-  const proofRequest = await ReclaimProofRequest.init(appId, appSecret, providerId);
+  const proofRequest = await ReclaimProofRequest.init(appId, appSecret, providerId, {
+    acceptTeeAttestation: shouldRequireTeeAttestation()
+  });
   const sessionId = proofRequest.getSessionId?.();
 
   if (!sessionId) {
@@ -103,9 +114,10 @@ export async function createReclaimProofRequest(input: ReclaimStartInput): Promi
     focalTweetId: tweetId
   });
 
-  const requestUrl = await proofRequest.getRequestUrl?.();
+  const requestUrl = await proofRequest.getRequestUrl?.({ verificationMode: "portal" });
+  const mobileRequestUrl = await proofRequest.getRequestUrl?.({ verificationMode: "app" });
 
-  if (!requestUrl) {
+  if (!requestUrl || !mobileRequestUrl) {
     throw new Error("Reclaim SDK did not return a verification URL.");
   }
 
@@ -115,6 +127,7 @@ export async function createReclaimProofRequest(input: ReclaimStartInput): Promi
   return {
     sessionId,
     requestUrl,
+    mobileRequestUrl,
     statusUrl,
     configJson,
     callbackUrl,

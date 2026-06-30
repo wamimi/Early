@@ -241,15 +241,33 @@ function LoadingView({
   progress,
   liveStatus,
   reclaimUrl,
+  mobileReclaimUrl,
+  sessionId,
   onReset
 }: {
   stage: ProofStage;
   progress: number;
   liveStatus: string;
   reclaimUrl: string;
+  mobileReclaimUrl: string;
+  sessionId: string;
   onReset: () => void;
 }) {
   const isFhe = stage.state === "fhe";
+  const [copyStatus, setCopyStatus] = useState("");
+
+  async function copyMobileLink() {
+    if (!mobileReclaimUrl) {
+      return;
+    }
+
+    try {
+      await window.navigator.clipboard.writeText(mobileReclaimUrl);
+      setCopyStatus("Mobile verification link copied.");
+    } catch {
+      setCopyStatus("Copy failed. Open the mobile link and share it to your phone.");
+    }
+  }
 
   return (
     <motion.section
@@ -272,10 +290,31 @@ function LoadingView({
               {reclaimUrl && (
                 <a
                   href={reclaimUrl}
+                  target="_blank"
+                  rel="noreferrer"
                   className="focus-garden rounded-full bg-receipt-bone px-5 py-3 text-sm font-semibold text-receipt-ink transition duration-300 hover:bg-white"
                 >
-                  Open Reclaim verification
+                  Open portal
                 </a>
+              )}
+              {mobileReclaimUrl && (
+                <a
+                  href={mobileReclaimUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="focus-garden rounded-full border border-apothecary-sage/30 bg-apothecary-moss/30 px-5 py-3 text-sm font-semibold text-apothecary-mint transition duration-300 hover:border-apothecary-neon/50 hover:bg-apothecary-fern/30"
+                >
+                  Open mobile verifier
+                </a>
+              )}
+              {mobileReclaimUrl && (
+                <button
+                  type="button"
+                  onClick={copyMobileLink}
+                  className="focus-garden rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:border-apothecary-sage/40 hover:text-apothecary-mint"
+                >
+                  Copy mobile link
+                </button>
               )}
               <button
                 type="button"
@@ -285,6 +324,16 @@ function LoadingView({
                 Start over
               </button>
             </div>
+            {(sessionId || copyStatus) && (
+              <div className="mt-6 grid gap-2 font-mono text-[0.7rem] uppercase tracking-[0.16em] text-zinc-500">
+                {sessionId && (
+                  <p>
+                    Session <span className="text-zinc-300">{sessionId}</span> is polling in Early. Complete the proof on any device and leave this tab open.
+                  </p>
+                )}
+                {copyStatus && <p className="text-apothecary-sage">{copyStatus}</p>}
+              </div>
+            )}
           </div>
           <div className="relative h-16 w-16 shrink-0 rounded-full border border-white/10 bg-white/[0.04]">
             <div className="absolute inset-2 animate-spin-soft rounded-full border border-transparent border-t-apothecary-neon" />
@@ -394,6 +443,7 @@ export default function Home() {
   const [proofError, setProofError] = useState("");
   const [liveStatus, setLiveStatus] = useState(() => (initialSessionId ? "Waiting for Reclaim proof callback..." : ""));
   const [reclaimUrl, setReclaimUrl] = useState("");
+  const [mobileReclaimUrl, setMobileReclaimUrl] = useState("");
   const [activeSessionId, setActiveSessionId] = useState(initialSessionId);
   const [verifiedSession, setVerifiedSession] = useState<ProofSessionResponse | null>(null);
 
@@ -476,6 +526,7 @@ export default function Home() {
           setProofError(session.errorMessage ?? "Reclaim verification failed. Please try another proof session.");
           setLiveStatus("");
           setReclaimUrl("");
+          setMobileReclaimUrl("");
           setProgress(0);
           setProofState("idle");
           return;
@@ -513,6 +564,7 @@ export default function Home() {
 
     setProofError("");
     setReclaimUrl("");
+    setMobileReclaimUrl("");
     setLiveStatus("Preparing Reclaim verification session...");
     setProgress(0);
     setProofState("zktls");
@@ -526,7 +578,7 @@ export default function Home() {
         body: JSON.stringify({ tweetUrl })
       });
 
-      const payload = (await response.json()) as { sessionId?: string; requestUrl?: string; error?: string };
+      const payload = (await response.json()) as { sessionId?: string; requestUrl?: string; mobileRequestUrl?: string; error?: string };
 
       if (!response.ok || !payload.requestUrl || !payload.sessionId) {
         throw new Error(payload.error ?? "Reclaim verification could not be started.");
@@ -535,13 +587,14 @@ export default function Home() {
       window.localStorage.setItem(sessionStorageKey, payload.sessionId);
       setActiveSessionId(payload.sessionId);
       setReclaimUrl(payload.requestUrl);
-      setLiveStatus("Redirecting to Reclaim verification...");
-      window.location.assign(payload.requestUrl);
+      setMobileReclaimUrl(payload.mobileRequestUrl ?? payload.requestUrl);
+      setLiveStatus("Reclaim session is ready. Open the portal here, or send the mobile verifier link to your phone.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Reclaim verification could not be started.";
       setProofError(message);
       setLiveStatus("");
       setReclaimUrl("");
+      setMobileReclaimUrl("");
       setProgress(0);
       setProofState("idle");
     }
@@ -553,6 +606,7 @@ export default function Home() {
     setProofError("");
     setLiveStatus("");
     setReclaimUrl("");
+    setMobileReclaimUrl("");
     setActiveSessionId("");
     setVerifiedSession(null);
     window.localStorage.removeItem(sessionStorageKey);
@@ -565,7 +619,17 @@ export default function Home() {
       <Header />
       <AnimatePresence mode="wait">
         {proofState === "idle" && <IdleView tweetUrl={tweetUrl} setTweetUrl={setTweetUrl} onSubmit={handleSubmit} proofError={proofError} />}
-        {activeStage && <LoadingView stage={activeStage} progress={progress} liveStatus={liveStatus} reclaimUrl={reclaimUrl} onReset={handleReset} />}
+        {activeStage && (
+          <LoadingView
+            stage={activeStage}
+            progress={progress}
+            liveStatus={liveStatus}
+            reclaimUrl={reclaimUrl}
+            mobileReclaimUrl={mobileReclaimUrl}
+            sessionId={activeSessionId}
+            onReset={handleReset}
+          />
+        )}
         {proofState === "verified" && <VerifiedView onReset={handleReset} session={verifiedSession} />}
       </AnimatePresence>
     </main>
