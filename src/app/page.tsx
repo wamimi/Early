@@ -30,7 +30,35 @@ type ProofSessionResponse = {
   extractedParameters: Record<string, string> | null;
   proofArtifact: EarlyProofArtifact | null;
   errorMessage: string | null;
+  stellarReceipt: {
+    walletAddress: string | null;
+    network: string | null;
+    contractId: string | null;
+    txHash: string | null;
+    status: "prepared" | "pending" | "published" | "failed" | null;
+    createdAt: string | null;
+  };
   completedAt: string | null;
+};
+
+type WalletState = {
+  address: string;
+  network: "testnet";
+  isConnecting: boolean;
+  error: string;
+};
+
+type StellarPublishState = {
+  status: "idle" | "preparing" | "awaiting-signature" | "submitting" | "prepared" | "pending" | "published" | "failed";
+  message: string;
+  txHash: string;
+  explorerUrl: string;
+};
+
+type StellarWalletKitApi = {
+  authModal: () => Promise<{ address: string }>;
+  getAddress: () => Promise<{ address: string }>;
+  signTransaction: (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => Promise<{ signedTxXdr: string }>;
 };
 
 type ProofStage = {
@@ -58,6 +86,48 @@ const stages: Record<"zktls" | "fhe", ProofStage> = {
 };
 
 const sessionStorageKey = "early.reclaim.sessionId";
+
+const initialWalletState: WalletState = {
+  address: "",
+  network: "testnet",
+  isConnecting: false,
+  error: ""
+};
+
+const initialPublishState: StellarPublishState = {
+  status: "idle",
+  message: "",
+  txHash: "",
+  explorerUrl: ""
+};
+
+let walletKitPromise: Promise<StellarWalletKitApi> | null = null;
+
+function truncateMiddle(value: string, start = 6, end = 6) {
+  if (!value) {
+    return "";
+  }
+
+  return value.length <= start + end + 3 ? value : `${value.slice(0, start)}...${value.slice(-end)}`;
+}
+
+async function loadWalletKit() {
+  if (!walletKitPromise) {
+    walletKitPromise = Promise.all([
+      import("@creit.tech/stellar-wallets-kit"),
+      import("@creit.tech/stellar-wallets-kit/modules/utils")
+    ]).then(([kitModule, modulesModule]) => {
+      kitModule.StellarWalletsKit.init({
+        modules: modulesModule.defaultModules(),
+        network: kitModule.Networks.TESTNET
+      });
+
+      return kitModule.StellarWalletsKit;
+    });
+  }
+
+  return walletKitPromise;
+}
 
 function readInitialSessionId() {
   if (typeof window === "undefined") {
@@ -144,12 +214,17 @@ function AmbientField() {
   );
 }
 
-function Header() {
+function Header({ wallet, onConnectWallet }: { wallet: WalletState; onConnectWallet: () => void }) {
   return (
     <header className="relative z-10 flex w-full items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
       <div className="font-mono text-xs uppercase tracking-[0.24em] text-zinc-300/80">Early v1.0.0-beta</div>
-      <button className="focus-garden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md transition duration-300 hover:border-apothecary-sage/40 hover:bg-apothecary-moss/20">
-        Connect Identity
+      <button
+        type="button"
+        onClick={onConnectWallet}
+        disabled={wallet.isConnecting}
+        className="focus-garden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md transition duration-300 hover:border-apothecary-sage/40 hover:bg-apothecary-moss/20 disabled:cursor-wait disabled:text-zinc-500"
+      >
+        {wallet.address ? truncateMiddle(wallet.address) : wallet.isConnecting ? "Connecting..." : "Connect Identity"}
       </button>
     </header>
   );
@@ -366,8 +441,26 @@ function LoadingView({
   );
 }
 
-function VerifiedView({ onReset, session }: { onReset: () => void; session: ProofSessionResponse | null }) {
+function VerifiedView({
+  onReset,
+  session,
+  wallet,
+  publishState,
+  onConnectWallet,
+  onPublishReceipt
+}: {
+  onReset: () => void;
+  session: ProofSessionResponse | null;
+  wallet: WalletState;
+  publishState: StellarPublishState;
+  onConnectWallet: () => void;
+  onPublishReceipt: () => void;
+}) {
   const rows = getCardRows(session);
+  const receiptStatus = publishState.status !== "idle" ? publishState.status : session?.stellarReceipt?.status;
+  const txHash = publishState.txHash || session?.stellarReceipt?.txHash || "";
+  const explorerUrl = publishState.explorerUrl || (txHash ? `https://stellar.expert/explorer/testnet/tx/${txHash}` : "");
+  const canPublish = Boolean(session?.proofArtifact?.publicCommitment && wallet.address && publishState.status !== "preparing" && publishState.status !== "awaiting-signature" && publishState.status !== "submitting");
 
   return (
     <motion.section
@@ -420,15 +513,56 @@ function VerifiedView({ onReset, session }: { onReset: () => void; session: Proo
 
           <div className="relative z-10 mt-10 flex items-center justify-between border-t border-dashed border-white/15 pt-5 font-mono text-xs uppercase tracking-[0.18em] text-zinc-500">
             <span>zkTLS attested</span>
-            <span>FHE shielded</span>
+            <span>Stellar ready</span>
           </div>
         </motion.div>
       </div>
 
-      <button
-        onClick={onReset}
-        className="focus-garden mt-8 rounded-full px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:text-apothecary-mint"
-      >
+      <div className="mt-8 flex w-full max-w-3xl flex-col gap-3 rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-4 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-zinc-500">Stellar receipt</p>
+          <p className="mt-1 text-sm text-zinc-300">
+            {wallet.address ? `Wallet ${truncateMiddle(wallet.address)} controls this receipt.` : "Connect a Stellar wallet to bind this proof to a public receipt."}
+          </p>
+          {(publishState.message || receiptStatus) && (
+            <p className="mt-2 font-mono text-xs uppercase tracking-[0.14em] text-apothecary-sage">
+              {publishState.message || `Receipt status: ${receiptStatus}`}
+            </p>
+          )}
+          {explorerUrl && (
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-flex font-mono text-xs uppercase tracking-[0.14em] text-apothecary-mint transition hover:text-white"
+            >
+              View Stellar tx {truncateMiddle(txHash)}
+            </a>
+          )}
+          {wallet.error && <p className="mt-2 font-mono text-xs uppercase tracking-[0.14em] text-apothecary-lotus">{wallet.error}</p>}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {!wallet.address && (
+            <button
+              type="button"
+              onClick={onConnectWallet}
+              className="focus-garden rounded-full border border-apothecary-sage/30 bg-apothecary-moss/30 px-4 py-2 text-sm font-semibold text-apothecary-mint transition hover:border-apothecary-neon/50"
+            >
+              Connect Wallet
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onPublishReceipt}
+            disabled={!canPublish}
+            className="focus-garden rounded-full bg-receipt-bone px-4 py-2 text-sm font-semibold text-receipt-ink transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-zinc-500"
+          >
+            {publishState.status === "preparing" || publishState.status === "awaiting-signature" || publishState.status === "submitting" ? "Publishing..." : "Publish Stellar Receipt"}
+          </button>
+        </div>
+      </div>
+
+      <button onClick={onReset} className="focus-garden mt-5 rounded-full px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:text-apothecary-mint">
         Process another proof
       </button>
     </motion.section>
@@ -446,6 +580,8 @@ export default function Home() {
   const [mobileReclaimUrl, setMobileReclaimUrl] = useState("");
   const [activeSessionId, setActiveSessionId] = useState(initialSessionId);
   const [verifiedSession, setVerifiedSession] = useState<ProofSessionResponse | null>(null);
+  const [wallet, setWallet] = useState<WalletState>(initialWalletState);
+  const [publishState, setPublishState] = useState<StellarPublishState>(initialPublishState);
 
   const activeStage = useMemo(() => {
     if (proofState === "zktls" || proofState === "fhe") {
@@ -508,6 +644,7 @@ export default function Home() {
         if (session.status === "succeeded") {
           window.localStorage.removeItem(sessionStorageKey);
           setVerifiedSession(session);
+          setPublishState((current) => (current.status === "idle" && session.stellarReceipt?.status ? { ...current, status: session.stellarReceipt.status } : current));
           setProgress(85);
           setLiveStatus("Reclaim proof received. Preparing private receipt...");
           setProofState("fhe");
@@ -615,14 +752,161 @@ export default function Home() {
     setMobileReclaimUrl("");
     setActiveSessionId("");
     setVerifiedSession(null);
+    setPublishState(initialPublishState);
     window.localStorage.removeItem(sessionStorageKey);
     setProofState("idle");
+  }
+
+  async function handleConnectWallet() {
+    setWallet((current) => ({ ...current, isConnecting: true, error: "" }));
+
+    try {
+      const kit = await loadWalletKit();
+      const { address } = await kit.authModal();
+      setWallet({
+        address,
+        network: "testnet",
+        isConnecting: false,
+        error: ""
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to connect Stellar wallet.";
+      setWallet((current) => ({ ...current, isConnecting: false, error: message }));
+    }
+  }
+
+  async function handlePublishReceipt() {
+    if (!verifiedSession?.sessionId || !wallet.address) {
+      setPublishState({
+        status: "failed",
+        message: "Connect a Stellar wallet after generating a successful proof.",
+        txHash: "",
+        explorerUrl: ""
+      });
+      return;
+    }
+
+    try {
+      setPublishState({
+        status: "preparing",
+        message: "Preparing privacy-safe Stellar receipt...",
+        txHash: "",
+        explorerUrl: ""
+      });
+
+      const prepareResponse = await fetch("/api/stellar/receipt/prepare", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sessionId: verifiedSession.sessionId,
+          walletAddress: wallet.address
+        })
+      });
+      const preparation = (await prepareResponse.json()) as {
+        error?: string;
+        contractConfigured?: boolean;
+        unsignedXdr?: string | null;
+        message?: string;
+        receipt?: {
+          contractId: string | null;
+          networkPassphrase: string;
+        };
+      };
+
+      if (!prepareResponse.ok) {
+        throw new Error(preparation.error ?? "Unable to prepare Stellar receipt.");
+      }
+
+      if (!preparation.contractConfigured || !preparation.unsignedXdr || !preparation.receipt) {
+        setPublishState({
+          status: "prepared",
+          message: preparation.message ?? "Receipt payload is prepared. Deploy the Soroban contract to publish on-chain.",
+          txHash: "",
+          explorerUrl: ""
+        });
+        return;
+      }
+
+      setPublishState({
+        status: "awaiting-signature",
+        message: "Confirm the Stellar transaction in your wallet...",
+        txHash: "",
+        explorerUrl: ""
+      });
+
+      const kit = await loadWalletKit();
+      const { signedTxXdr } = await kit.signTransaction(preparation.unsignedXdr, {
+        networkPassphrase: preparation.receipt.networkPassphrase,
+        address: wallet.address
+      });
+
+      setPublishState({
+        status: "submitting",
+        message: "Submitting Stellar receipt to testnet...",
+        txHash: "",
+        explorerUrl: ""
+      });
+
+      const submitResponse = await fetch("/api/stellar/receipt/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sessionId: verifiedSession.sessionId,
+          walletAddress: wallet.address,
+          contractId: preparation.receipt.contractId,
+          signedTxXdr
+        })
+      });
+      const submission = (await submitResponse.json()) as {
+        error?: string;
+        txHash?: string;
+        explorerUrl?: string;
+      };
+
+      if (!submitResponse.ok || !submission.txHash) {
+        throw new Error(submission.error ?? "Unable to submit Stellar receipt.");
+      }
+
+      setVerifiedSession((current) =>
+        current
+          ? {
+              ...current,
+              stellarReceipt: {
+                walletAddress: wallet.address,
+                network: "testnet",
+                contractId: preparation.receipt?.contractId ?? null,
+                txHash: submission.txHash ?? null,
+                status: "published",
+                createdAt: new Date().toISOString()
+              }
+            }
+          : current
+      );
+      setPublishState({
+        status: "published",
+        message: "Published on Stellar testnet.",
+        txHash: submission.txHash,
+        explorerUrl: submission.explorerUrl ?? ""
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to publish Stellar receipt.";
+      setPublishState({
+        status: "failed",
+        message,
+        txHash: "",
+        explorerUrl: ""
+      });
+    }
   }
 
   return (
     <main className="grain-field relative min-h-svh w-full max-w-full overflow-x-hidden bg-velvet-950">
       <AmbientField />
-      <Header />
+      <Header wallet={wallet} onConnectWallet={handleConnectWallet} />
       <AnimatePresence mode="wait">
         {proofState === "idle" && <IdleView tweetUrl={tweetUrl} setTweetUrl={setTweetUrl} onSubmit={handleSubmit} proofError={proofError} />}
         {activeStage && (
@@ -636,7 +920,16 @@ export default function Home() {
             onReset={handleReset}
           />
         )}
-        {proofState === "verified" && <VerifiedView onReset={handleReset} session={verifiedSession} />}
+        {proofState === "verified" && (
+          <VerifiedView
+            onReset={handleReset}
+            session={verifiedSession}
+            wallet={wallet}
+            publishState={publishState}
+            onConnectWallet={handleConnectWallet}
+            onPublishReceipt={handlePublishReceipt}
+          />
+        )}
       </AnimatePresence>
     </main>
   );

@@ -25,6 +25,14 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ se
       extractedParameters: session.extracted_parameters,
       proofArtifact: session.proof_artifact,
       errorMessage: session.error_message,
+      stellarReceipt: {
+        walletAddress: session.stellar_wallet_address,
+        network: session.stellar_network,
+        contractId: session.stellar_contract_id,
+        txHash: session.stellar_receipt_tx_hash,
+        status: session.stellar_receipt_status,
+        createdAt: session.stellar_receipt_created_at
+      },
       createdAt: session.created_at,
       updatedAt: session.updated_at,
       completedAt: session.completed_at
