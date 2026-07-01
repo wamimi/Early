@@ -11,6 +11,12 @@ export type ProofSession = {
   extracted_parameters: unknown | null;
   proof_artifact: unknown | null;
   error_message: string | null;
+  stellar_wallet_address: string | null;
+  stellar_network: string | null;
+  stellar_contract_id: string | null;
+  stellar_receipt_tx_hash: string | null;
+  stellar_receipt_status: string | null;
+  stellar_receipt_created_at: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -31,6 +37,15 @@ export type CompleteProofSessionInput = {
   extractedParameters?: unknown;
   proofArtifact?: unknown;
   errorMessage?: string;
+};
+
+export type RecordStellarReceiptInput = {
+  sessionId: string;
+  walletAddress: string;
+  network: string;
+  contractId?: string | null;
+  txHash?: string | null;
+  status: "prepared" | "pending" | "published" | "failed";
 };
 
 const tableName = "reclaim_proof_sessions";
@@ -125,6 +140,12 @@ export async function getProofSession(sessionId: string) {
     "extracted_parameters",
     "proof_artifact",
     "error_message",
+    "stellar_wallet_address",
+    "stellar_network",
+    "stellar_contract_id",
+    "stellar_receipt_tx_hash",
+    "stellar_receipt_status",
+    "stellar_receipt_created_at",
     "created_at",
     "updated_at",
     "completed_at"
@@ -135,4 +156,28 @@ export async function getProofSession(sessionId: string) {
   const rows = await readSupabaseJson<ProofSession[]>(response);
 
   return rows[0] ?? null;
+}
+
+export async function recordStellarReceipt(input: RecordStellarReceiptInput) {
+  const response = await fetch(`${getSupabaseBaseUrl()}?session_id=eq.${encodeURIComponent(input.sessionId)}`, {
+    method: "PATCH",
+    headers: getSupabaseHeaders({
+      Prefer: "return=representation"
+    }),
+    body: JSON.stringify({
+      stellar_wallet_address: input.walletAddress,
+      stellar_network: input.network,
+      stellar_contract_id: input.contractId ?? null,
+      stellar_receipt_tx_hash: input.txHash ?? null,
+      stellar_receipt_status: input.status,
+      stellar_receipt_created_at: new Date().toISOString()
+    })
+  });
+  const rows = await readSupabaseJson<ProofSession[]>(response);
+
+  if (rows.length === 0) {
+    throw new Error(`No Reclaim proof session found for ${input.sessionId}.`);
+  }
+
+  return rows[0];
 }
