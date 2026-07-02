@@ -33,6 +33,13 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ se
         status: session.stellar_receipt_status,
         createdAt: session.stellar_receipt_created_at
       },
+      stellarVerifier: {
+        contractId: session.stellar_verifier_contract_id,
+        txHash: session.stellar_verifier_tx_hash,
+        status: session.stellar_verifier_status,
+        createdAt: session.stellar_verifier_created_at,
+        errorMessage: session.stellar_verifier_error_message
+      },
       createdAt: session.created_at,
       updatedAt: session.updated_at,
       completedAt: session.completed_at
