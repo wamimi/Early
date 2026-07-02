@@ -13,6 +13,8 @@ import {
 
 type JsonRecord = Record<string, unknown>;
 
+const stellarReceiptExplorerBaseUrl = "https://testnet.stellarchain.io";
+
 export type StellarReceiptPayload = {
   owner: string;
   network: "testnet";
@@ -51,7 +53,8 @@ export function getStellarRpcUrl() {
 }
 
 export function getStellarExplorerUrl(txHash: string) {
-  return `https://stellar.expert/explorer/testnet/tx/${txHash}`;
+  const baseUrl = process.env.STELLAR_EXPLORER_URL ?? stellarReceiptExplorerBaseUrl;
+  return `${baseUrl.replace(/\/$/, "")}/transactions/${txHash}`;
 }
 
 function sha256Hex(value: unknown) {
@@ -74,6 +77,28 @@ function unwrapSha256(value: unknown, label: string) {
 
 function hexToBytes(hex: string) {
   return Uint8Array.from(Buffer.from(hex, "hex"));
+}
+
+function bytes32ScVal(hex: string) {
+  return nativeToScVal(hexToBytes(hex), { type: "bytes" });
+}
+
+async function waitForStellarTransaction(server: rpc.Server, hash: string) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    const result = await server.getTransaction(hash);
+
+    if (result.status === rpc.Api.GetTransactionStatus.SUCCESS) {
+      return result;
+    }
+
+    if (result.status === rpc.Api.GetTransactionStatus.FAILED) {
+      throw new Error(`Stellar transaction failed after submission: ${hash}`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  throw new Error(`Stellar transaction is still pending: ${hash}`);
 }
 
 export function assertValidStellarAddress(walletAddress: string) {
@@ -139,10 +164,10 @@ export async function prepareStellarReceiptTransaction(receipt: StellarReceiptPa
       contract.call(
         "publish_receipt",
         new Address(receipt.owner).toScVal(),
-        nativeToScVal(hexToBytes(receipt.publicCommitmentHex)),
-        nativeToScVal(hexToBytes(receipt.proofHashHex)),
+        bytes32ScVal(receipt.publicCommitmentHex),
+        bytes32ScVal(receipt.proofHashHex),
         nativeToScVal(receipt.platform, { type: "symbol" }),
-        nativeToScVal(hexToBytes(receipt.contentHashHex))
+        bytes32ScVal(receipt.contentHashHex)
       )
     )
     .setTimeout(TimeoutInfinite)
@@ -166,9 +191,11 @@ export async function submitSignedStellarReceipt(signedXdr: string) {
     throw new Error(result.errorResult?.toXDR("base64") ?? "Stellar receipt transaction failed.");
   }
 
+  await waitForStellarTransaction(server, result.hash);
+
   return {
     txHash: result.hash,
-    status: result.status,
+    status: "SUCCESS",
     explorerUrl: getStellarExplorerUrl(result.hash)
   };
 }
