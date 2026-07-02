@@ -217,6 +217,10 @@ RECLAIM_REQUIRE_TEE_ATTESTATION=false
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+STELLAR_NETWORK=testnet
+STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+STELLAR_RECEIPT_CONTRACT_ID=
 ```
 
 Notes:
@@ -225,6 +229,7 @@ Notes:
 - `SUPABASE_SERVICE_ROLE_KEY` must stay server-side.
 - Keep `RECLAIM_REQUIRE_TEE_ATTESTATION=false` while testing mobile verifier flows if Reclaim returns valid proofs without verifier TEE material. Set it to `true` only when the proof route consistently includes valid TEE attestation.
 - For Vercel, set `NEXT_PUBLIC_APP_URL` to the deployed URL, for example `https://early-psi.vercel.app`.
+- `STELLAR_RECEIPT_CONTRACT_ID` is optional during local UI testing. Set it after deploying `contracts/stellar-receipt` to enable real Soroban receipt publishing.
 
 ## Supabase Setup
 
@@ -415,7 +420,7 @@ For ZK-on-Stellar work, Early can add a public receipt or verifier layer:
 - verify proof artifacts or proof hashes in a Soroban contract,
 - make the proof-of-discovery legible inside the Stellar ecosystem.
 
-This is roadmap work. The current app does not yet verify Reclaim proofs on Stellar.
+The current app includes the first Stellar milestone: wallet connection, receipt preparation, Supabase receipt tracking, and a minimal Soroban receipt registry scaffold. Once `STELLAR_RECEIPT_CONTRACT_ID` is configured, a verified Early artifact can be signed by the connected wallet and published as a public testnet receipt. The current app does not yet verify Reclaim proofs on Stellar.
 
 ## Security Notes
 

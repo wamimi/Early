@@ -9,6 +9,15 @@ create table if not exists public.reclaim_proof_sessions (
   extracted_parameters jsonb,
   proof_artifact jsonb,
   error_message text,
+  stellar_wallet_address text,
+  stellar_network text,
+  stellar_contract_id text,
+  stellar_receipt_tx_hash text,
+  stellar_receipt_status text check (
+    stellar_receipt_status is null
+    or stellar_receipt_status in ('prepared', 'pending', 'published', 'failed')
+  ),
+  stellar_receipt_created_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   completed_at timestamptz
@@ -16,6 +25,14 @@ create table if not exists public.reclaim_proof_sessions (
 
 alter table public.reclaim_proof_sessions
   add column if not exists proof_artifact jsonb;
+
+alter table public.reclaim_proof_sessions
+  add column if not exists stellar_wallet_address text,
+  add column if not exists stellar_network text,
+  add column if not exists stellar_contract_id text,
+  add column if not exists stellar_receipt_tx_hash text,
+  add column if not exists stellar_receipt_status text,
+  add column if not exists stellar_receipt_created_at timestamptz;
 
 create index if not exists reclaim_proof_sessions_status_idx
   on public.reclaim_proof_sessions (status);

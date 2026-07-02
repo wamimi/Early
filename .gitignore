@@ -9,6 +9,8 @@ out/
 # Production
 build/
 dist/
+target/
+test_snapshots/
 
 # Environment
 .env
