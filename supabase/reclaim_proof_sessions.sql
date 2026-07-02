@@ -18,6 +18,14 @@ create table if not exists public.reclaim_proof_sessions (
     or stellar_receipt_status in ('prepared', 'pending', 'published', 'failed')
   ),
   stellar_receipt_created_at timestamptz,
+  stellar_verifier_contract_id text,
+  stellar_verifier_tx_hash text,
+  stellar_verifier_status text check (
+    stellar_verifier_status is null
+    or stellar_verifier_status in ('prepared', 'pending', 'verified', 'failed')
+  ),
+  stellar_verifier_created_at timestamptz,
+  stellar_verifier_error_message text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   completed_at timestamptz
@@ -32,7 +40,29 @@ alter table public.reclaim_proof_sessions
   add column if not exists stellar_contract_id text,
   add column if not exists stellar_receipt_tx_hash text,
   add column if not exists stellar_receipt_status text,
-  add column if not exists stellar_receipt_created_at timestamptz;
+  add column if not exists stellar_receipt_created_at timestamptz,
+  add column if not exists stellar_verifier_contract_id text,
+  add column if not exists stellar_verifier_tx_hash text,
+  add column if not exists stellar_verifier_status text,
+  add column if not exists stellar_verifier_created_at timestamptz,
+  add column if not exists stellar_verifier_error_message text;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'reclaim_proof_sessions_stellar_verifier_status_check'
+  ) then
+    alter table public.reclaim_proof_sessions
+      add constraint reclaim_proof_sessions_stellar_verifier_status_check
+      check (
+        stellar_verifier_status is null
+        or stellar_verifier_status in ('prepared', 'pending', 'verified', 'failed')
+      );
+  end if;
+end;
+$$;
 
 create index if not exists reclaim_proof_sessions_status_idx
   on public.reclaim_proof_sessions (status);
