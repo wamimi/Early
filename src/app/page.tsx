@@ -459,7 +459,7 @@ function VerifiedView({
   const rows = getCardRows(session);
   const receiptStatus = publishState.status !== "idle" ? publishState.status : session?.stellarReceipt?.status;
   const txHash = publishState.txHash || session?.stellarReceipt?.txHash || "";
-  const explorerUrl = publishState.explorerUrl || (txHash ? `https://stellar.expert/explorer/testnet/tx/${txHash}` : "");
+  const explorerUrl = publishState.explorerUrl || (txHash ? `https://testnet.stellarchain.io/transactions/${txHash}` : "");
   const canPublish = Boolean(session?.proofArtifact?.publicCommitment && wallet.address && publishState.status !== "preparing" && publishState.status !== "awaiting-signature" && publishState.status !== "submitting");
 
   return (
