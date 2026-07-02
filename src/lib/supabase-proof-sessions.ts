@@ -17,6 +17,11 @@ export type ProofSession = {
   stellar_receipt_tx_hash: string | null;
   stellar_receipt_status: string | null;
   stellar_receipt_created_at: string | null;
+  stellar_verifier_contract_id: string | null;
+  stellar_verifier_tx_hash: string | null;
+  stellar_verifier_status: string | null;
+  stellar_verifier_created_at: string | null;
+  stellar_verifier_error_message: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -46,6 +51,14 @@ export type RecordStellarReceiptInput = {
   contractId?: string | null;
   txHash?: string | null;
   status: "prepared" | "pending" | "published" | "failed";
+};
+
+export type RecordStellarVerifierInput = {
+  sessionId: string;
+  contractId?: string | null;
+  txHash?: string | null;
+  status: "prepared" | "pending" | "verified" | "failed";
+  errorMessage?: string | null;
 };
 
 const tableName = "reclaim_proof_sessions";
@@ -146,6 +159,11 @@ export async function getProofSession(sessionId: string) {
     "stellar_receipt_tx_hash",
     "stellar_receipt_status",
     "stellar_receipt_created_at",
+    "stellar_verifier_contract_id",
+    "stellar_verifier_tx_hash",
+    "stellar_verifier_status",
+    "stellar_verifier_created_at",
+    "stellar_verifier_error_message",
     "created_at",
     "updated_at",
     "completed_at"
@@ -171,6 +189,29 @@ export async function recordStellarReceipt(input: RecordStellarReceiptInput) {
       stellar_receipt_tx_hash: input.txHash ?? null,
       stellar_receipt_status: input.status,
       stellar_receipt_created_at: new Date().toISOString()
+    })
+  });
+  const rows = await readSupabaseJson<ProofSession[]>(response);
+
+  if (rows.length === 0) {
+    throw new Error(`No Reclaim proof session found for ${input.sessionId}.`);
+  }
+
+  return rows[0];
+}
+
+export async function recordStellarVerifier(input: RecordStellarVerifierInput) {
+  const response = await fetch(`${getSupabaseBaseUrl()}?session_id=eq.${encodeURIComponent(input.sessionId)}`, {
+    method: "PATCH",
+    headers: getSupabaseHeaders({
+      Prefer: "return=representation"
+    }),
+    body: JSON.stringify({
+      stellar_verifier_contract_id: input.contractId ?? null,
+      stellar_verifier_tx_hash: input.txHash ?? null,
+      stellar_verifier_status: input.status,
+      stellar_verifier_created_at: new Date().toISOString(),
+      stellar_verifier_error_message: input.errorMessage ?? null
     })
   });
   const rows = await readSupabaseJson<ProofSession[]>(response);
