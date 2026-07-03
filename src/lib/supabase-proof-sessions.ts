@@ -150,6 +150,7 @@ export async function getProofSession(sessionId: string) {
     "request_url",
     "status_url",
     "status",
+    "proof_payload",
     "extracted_parameters",
     "proof_artifact",
     "error_message",
