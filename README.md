@@ -1,101 +1,35 @@
-# Early — You were early. Now prove it.
+# Early: The internet never remembers who was first. You do.
 
-> A retroactive proof-of-discovery protocol. Prove you interacted with content before it went viral: cryptographically, permanently, privately.
+What if you could prove that your taste was already there?
 
-Early is a protocol that turns the feeling of **"I was there before anyone else"** into a verifiable, unforgeable fact.
+Early is a proof-of-discovery protocol for the internet. It turns early cultural endorsement into a cryptographic receipt: you saw the post, liked it, replied to it, and can prove that moment came from the platform's own authenticated records.
 
-You scroll past a tweet. You like it, reply with something genuine, and move on. Weeks later it has 50 million impressions. You remember seeing it early. Right now there is no clean way to prove that. Screenshots are fakeable. Public comments are easy to point at, but anyone can claim they always had taste.
+The first working surface is X. The larger idea is not X-specific.
 
-The same thing happens everywhere culture starts.
+An artist drops a video before the algorithm wakes up. A creator posts the reel that later becomes the thing everyone quotes. A builder shares an idea while it still looks tiny. You were there early because the work actually hit.
 
-You comment under a music video before the artist becomes unavoidable. You are one of the first people to notice a new Rihanna song after years of silence, or an Adele performance, or a tiny creator's first video before the audience arrives. You find an Instagram artist when their caption says, "POV: you discovered me before I was famous." You save the reel, leave a comment, and become part of the earliest circle around the work.
+Early gives that moment a receipt.
 
-Today, those moments disappear into feeds and screenshots. Early turns them into proof.
+For creators, that receipt can become a reward layer. Early fans can prove they showed up before the crowd. Artists, communities, and builders can recognize the people who believed first: concert access, fan passes, allowlists, private drops, community roles, or whatever the culture around the work decides to make valuable.
 
-Using zkTLS through Reclaim Protocol, your own authenticated platform session proves what you did and when. Using Zama FHE, the longer-term protocol keeps sensitive identity and timestamp data private before it touches chain. The proof is anchored in the platform's own server record, not your memory, not your screenshot, not your device clock.
+This project is built for that feeling: the quiet, very online knowledge that you had taste before the timeline agreed.
 
-This is a curator's resume for the internet. It is also a reward layer for creators who want to recognize the people who believed first.
+## What Works Now
 
-## The Core Primitive: The Endorsed Contribution Bundle
+The current app proves an X endorsement and carries it all the way to Stellar testnet.
 
-A bare like is too passive. It is easy to farm, easy to bot, and often too thin to mean anything.
+Today, Early can:
 
-Early requires two concurrent signals:
+- start a real Reclaim proof session from the app,
+- use a custom X Reclaim provider to prove an authenticated account liked and replied to a parent post,
+- receive and verify the Reclaim callback,
+- normalize the callback into an Early Proof Artifact,
+- show an Early card only after the proof succeeds,
+- connect a Stellar wallet,
+- verify the Reclaim proof on Stellar testnet,
+- publish a privacy-safe receipt on Stellar testnet.
 
-**The Taste Signal**  
-A like or favorite on the post. This proves positive intentional alignment with the content.
-
-**The Time Anchor**  
-A reply or comment on the same post. Replies are assigned a permanent timestamp by the platform itself. On X, this is the `created_at` field baked into the tweet object returned by X's authenticated servers.
-
-Together these form an **Endorsed Contribution Bundle**: a coupled signal that is harder to fake and more meaningful as cultural discovery.
-
-You did not just see the thing. You endorsed it.
-
-## Why The Timestamp Cannot Be Faked
-
-This is the most important thing to understand.
-
-The reply timestamp comes from the platform's authenticated servers. It does not come from your laptop. It does not come from a screenshot. It does not come from Early.
-
-For X, the relevant field is the reply tweet's `created_at` timestamp. X recorded it when the reply was created. You cannot go back and make that reply older.
-
-Reclaim Protocol turns that authenticated HTTPS response into a proof. The proof says, in effect:
-
-> This specific data was returned by `x.com` inside an authenticated session, and it matched the required fields.
-
-That makes the server record portable and verifiable without handing Early your X password, cookies, or full browsing history.
-
-## The Retroactive Model
-
-Early does not require you to run a tracker while browsing.
-
-The model is:
-
-```txt
-interact naturally -> forget about it -> come back when it matters
-```
-
-When a post blows up and you remember you were early:
-
-1. Open Early.
-2. Paste the post URL.
-3. Prove your authenticated account liked and replied to that post.
-4. Extract the reply timestamp from the platform's server response.
-5. Generate a zkTLS proof.
-6. Privately bind the proof to your cryptographic identity.
-7. Receive a shareable proof card.
-
-No friction until the moment the proof matters.
-
-## Discovery Delta
-
-Early does not reward bot-like speed for its own sake.
-
-It measures the **Discovery Delta**: the difference between the footprint of a piece of content when you interacted with it and the cultural footprint it has later.
-
-The dream is simple:
-
-> Taste should compound.
-
-People who consistently find important work before the algorithm does should have a cryptographic record of that taste. Not a clout screenshot. Not a vague claim. A verifiable history.
-
-That history can become useful. A creator, artist, or community could decide to reward early believers: concert access, allowlist spots, private drops, fan badges, backstage moments, community roles, or whatever else makes sense for the culture around the work.
-
-If Rihanna releases a new music video after a long silence and you were one of the first people to comment, Early should let you prove that. If she later wants to reward early fans, she should not have to trust screenshots or noisy comment archaeology. She should be able to ask for proofs.
-
-## Current V1
-
-This repository currently implements the first working slice of Early:
-
-- A polished Next.js proof flow.
-- A custom Reclaim provider for X endorsed contributions.
-- A server-side Reclaim proof-session starter.
-- A Reclaim callback endpoint that verifies returned proofs.
-- Supabase-backed proof session tracking.
-- A frontend that only reveals the Early Card after a real proof callback succeeds.
-
-Current provider:
+Current Reclaim provider:
 
 ```txt
 Name: Early X Endorsed Contribution
@@ -103,31 +37,118 @@ Provider ID: fe0767e9-8172-48c0-ba64-702703c4c745
 Version: 1.0.0
 ```
 
-The current X provider verifies that an authenticated X user has:
+Current Stellar contracts:
 
-- liked the parent post,
-- replied under that same parent post,
-- a reply timestamp from X's server response,
-- account identity fields needed for proof extraction.
+```txt
+Reclaim verifier contract:
+CA3EMXR6JOOTNP44T3OAJFMMMGKRRETDJKBLZP2RU3SIY4SDFAH54DU5
 
-## How The Current App Works
+Early receipt contract:
+CDBE7NFQPVD5LXU7TJVQTXZNBYIH75VXQW24DA7LARS3MA5XLT2V2VRM
+```
 
-1. The user pastes an X post URL into Early.
+## Why This Fits The Stellar ZK Track
+
+Early is a real-world ZK application with an actual user-facing proof flow.
+
+The ZK part starts with Reclaim zkTLS: an authenticated X server response becomes a verifiable proof of a real Web2 action. The Stellar part is not decorative. The app serializes the verified Reclaim proof material, sends it to a Stellar testnet verifier contract, and only then allows the user to publish a wallet-owned receipt.
+
+For the demo, Stellar is doing two jobs:
+
+- verifying the Reclaim witness signature on testnet,
+- storing a public receipt that points to the private proof commitment.
+
+That gives Early a clean bridge between social proof and public infrastructure. The user keeps the cultural story; Stellar keeps the durable receipt.
+
+## The X Proof
+
+For v1, Early proves a simple but meaningful bundle:
+
+```txt
+liked the parent X post + replied under the same parent X post
+```
+
+The like is the endorsement. The reply is the time anchor.
+
+On X, a reply has a `created_at` timestamp in the authenticated `TweetDetail` response. That timestamp is already in X's record. Reclaim turns the authenticated response into a proof Early can verify.
+
+That is what makes the moment portable. The user can come back later, paste the post URL, and prove they had already interacted with it.
+
+## How The App Works
+
+The full current flow:
+
+1. A user pastes an X post URL into Early.
 2. Early creates a Reclaim proof session on the server.
-3. The session is inserted into Supabase as `pending`.
-4. The user is redirected to the Reclaim portal.
-5. The user completes authenticated X verification.
-6. Reclaim POSTs the proof payload to Early's callback endpoint.
-7. Early verifies the proof with `@reclaimprotocol/js-sdk`.
-8. Early normalizes the verified callback into an Early Proof Artifact.
-9. Supabase updates the session to `succeeded` or `failed`.
-10. The frontend polls the session endpoint and only shows the Early Card after success.
+3. The session is stored in Supabase as `pending`.
+4. The user completes the Reclaim verification flow.
+5. Reclaim sends the proof callback to Early.
+6. Early verifies the callback with `@reclaimprotocol/js-sdk`.
+7. Early extracts the X proof fields and creates an Early Proof Artifact.
+8. Supabase marks the session as `succeeded`.
+9. The frontend polls the session and reveals the Early card.
+10. The user connects a Stellar wallet.
+11. The app prepares a Stellar transaction for the Reclaim verifier contract.
+12. The user signs with Freighter or another Stellar wallet.
+13. Stellar verifies the Reclaim witness signature on testnet.
+14. The user publishes a public Early receipt that points to the proof commitment.
+
+The proof card is for humans. The Stellar receipt is for permanence and public verification.
+
+## Where ZK Is Used
+
+Early uses zkTLS through Reclaim Protocol.
+
+Reclaim lets the user prove that specific data appeared in an authenticated HTTPS response from X. Early's provider targets the X web GraphQL `TweetDetail` request and extracts only the fields needed for the proof.
+
+The important part is that Early does not need the user's X password or cookies. The proof is generated through Reclaim's flow, and Early receives a callback payload that can be verified server-side.
+
+In this app, zkTLS is used to prove:
+
+- the parent X post was favorited by the authenticated account,
+- the authenticated account has a reply under that same parent post,
+- the reply has a real X server timestamp,
+- the reply points back to the parent post.
+
+Then Stellar enters.
+
+Early serializes the verified Reclaim proof material and sends it through a Stellar testnet verifier contract. That verifier checks the Reclaim witness signature on-chain. After that succeeds, Early lets the wallet publish a receipt to a separate Soroban receipt contract.
+
+So the current  path is:
+
+```txt
+X authenticated server data
+-> Reclaim zkTLS proof
+-> Early callback verification
+-> Early Proof Artifact
+-> Reclaim proof verification on Stellar testnet
+-> Early receipt on Stellar testnet
+```
+
+This is the working end-to-end demo.
+
+## What Goes On Stellar
+
+The receipt is intentionally small.
+
+Stellar stores public proof references and wallet-owned receipt data, not raw social identity. The on-chain receipt path uses:
+
+- wallet address,
+- proof hash,
+- public commitment,
+- platform marker,
+- content hash,
+- transaction hashes for verifier and receipt steps.
+
+It does not publish the raw X handle, raw Reclaim callback payload, or full provider response.
+
+That matters because Early is about proving taste without turning someone's Web2 identity into permanent public chain exhaust.
 
 ## The Early Proof Artifact
 
-Reclaim proves the authenticated Web2 fact. The Early Proof Artifact turns that proof into a chain-neutral object that future Zama and Stellar integrations can consume without understanding every provider-specific response field.
+The app normalizes each successful Reclaim callback into a stable object. That object is the bridge between the Web2 proof and everything that happens next.
 
-For X v1, the artifact shape is:
+For X v1:
 
 ```ts
 type EarlyProofArtifact = {
@@ -145,47 +166,127 @@ type EarlyProofArtifact = {
 };
 ```
 
-The artifact has two jobs:
+The artifact lets the frontend show a clean receipt, lets the server prepare Stellar transactions, and gives future privacy layers one stable shape to consume.
 
-- give the frontend a stable receipt format,
-- give future chain integrations a privacy-aware boundary.
+For development, the raw Reclaim proof payload is still stored in Supabase so the proof pipeline can be debugged. A production hardening pass should reduce retention and store only what the app truly needs.
 
-`proofHash` commits to the full callback payload. `identityHash` commits to the normalized Web2 identity. `publicCommitment` commits to the artifact's core public facts without requiring a chain to store the raw X handle, raw proof payload, or exact provider response.
+## The Reclaim Provider Work
 
-The raw Reclaim proof payload is currently stored in Supabase for development and debugging. Before production, this should be minimized or moved into a stricter retention path.
+The custom provider is a real part of the build, not just configuration.
 
-## The X Endpoint
+This project does not use an existing public Reclaim provider for X. The Early X provider was built from scratch for this app, then tested with real proof sessions until it could reliably prove the like, reply, timestamp, and reply-to relationship needed for Early.
 
-The current provider is based on X's web GraphQL `TweetDetail` request:
+For X, the useful data is buried inside authenticated web requests. The provider had to be built around X's `TweetDetail` GraphQL request:
 
 ```txt
 GET https://x.com/i/api/graphql/{queryId}/TweetDetail
 ```
 
-This response can include:
+The provider extracts parent tweet data, reply data, favorited status, reply relationship fields, timestamps, and identity fields from the authenticated response. This is what lets Early prove a real endorsed contribution instead of asking the user to upload screenshots.
 
-- the parent tweet's `favorited` status,
-- replies in the thread,
-- the authenticated user's reply,
-- the reply's `created_at` timestamp,
-- the user's screen name and account identifiers.
+Maintenance note: X can rotate the GraphQL query ID when its frontend changes. If the provider breaks, the first thing to recapture is the latest `TweetDetail` request from an authenticated X session.
 
-Important maintenance note: X can rotate the `queryId` when they ship new frontend bundles. If the provider breaks, the likely first repair is to capture the latest `TweetDetail` request and update the provider.
+## Testing The Reclaim Flow
 
-## Privacy Model
+Early creates the Reclaim session. That part is important. Even when the proof is completed on mobile, the callback still returns to Early.
 
-Early's intended privacy stack has two layers:
+The app exposes two handoff paths:
 
-**Reclaim Protocol / zkTLS**  
-Proves authenticated Web2 data came from the platform without exposing the user's full account history to Early.
+- **Open Reclaim**: opens the Reclaim portal in a browser tab.
+- **Open on phone / Copy phone link**: sends the same Early-created session to the mobile Reclaim Verifier flow.
 
-**Zama FHE / fhEVM**  
-Planned next. Encrypts sensitive identity and timestamp values before on-chain submission, so public chain state does not dox the user's Web2 identity.
+For the current demo, the mobile path has been the most reliable. Install the official Reclaim Verifier app on your phone, start the proof from Early, copy the phone link, complete X verification on mobile, and keep the Early browser tab open. When Reclaim posts the callback, the desktop app detects it and continues to the card and Stellar steps.
 
-**Early Proof Artifact**  
-Implemented now. Normalizes the verified Reclaim result into a stable bridge object for receipts, Zama encryption, and future public commitments.
+If the portal works for your account, use it. If X throttles portal logins, use the mobile verifier path.
 
-The current repository has the Reclaim proof layer and artifact layer wired. Zama FHE is part of the protocol roadmap and has not yet been production-wired into this app.
+## Platform Roadmap
+
+Early starts with X because it gives the cleanest proof surface: a like as endorsement, a reply as timestamp, and an authenticated server response as proof.
+
+The protocol is meant to travel anywhere culture starts.
+
+### X: Live Now
+
+The X version proves you liked and replied before a post became culturally important.
+
+This is useful for builders, writers, researchers, founders, artists, and people who find ideas before they become consensus. A tweet can become a reference point months later. Early lets the person who genuinely engaged with it prove they were already there.
+
+Technical status: working provider, working Reclaim callback, working Stellar verification, working Stellar receipt.
+
+### YouTube: Future Provider
+
+YouTube is the fan version of Early.
+
+Imagine a new Rihanna video after years of silence. Or an unknown artist uploading the song that later becomes unavoidable. You are there in the first hour, leaving one of the first real comments before the algorithm pushes it everywhere.
+
+If that artist later wants to reward early fans with tickets, merch, private listening access, or a fan pass, Early can become the proof layer.
+
+Target proof:
+
+- authenticated YouTube session,
+- comment tied to a specific `videoId`,
+- comment timestamp,
+- current video metrics for later scale,
+- proof that the user was part of the early audience.
+
+Likely research path:
+
+```txt
+POST https://www.youtube.com/youtubei/v1/browse
+https://www.youtube.com/feed/history/comment_history
+```
+
+Technical status: future provider. YouTube often exposes relative timestamps like `"2 years ago"`, which are not strong enough by themselves. The provider needs an absolute timestamp or another stable time anchor.
+
+### Instagram: Research Phase
+
+Instagram is where Early becomes emotionally obvious.
+
+Creators already say it:
+
+```txt
+POV: you discovered me before I was famous.
+```
+
+Sometimes they even promise the future reward directly: bring this video to a concert one day, and you get in because you were here early.
+
+Early turns that social promise into proof. A creator can recognize the people who commented, saved, or supported the work before the crowd arrived. A fan can keep a receipt of being part of the earliest circle.
+
+Target proof:
+
+- authenticated Instagram session,
+- comment, save, or like on a post or reel,
+- creator/post identity,
+- timestamp where available,
+- future reward eligibility from a verified early interaction.
+
+Technical status: research phase. Instagram is more fragile and rate-limited than X. Comments may be the first realistic primitive because they are public timestamped objects attached to posts. Likes and saves need separate validation.
+
+### Other Cultural Surfaces
+
+The same pattern can extend to Farcaster casts, music platforms, writing platforms, niche communities, and any place where timestamped participation becomes meaningful later.
+
+The core question stays the same:
+
+```txt
+What did you endorse, when did you endorse it, and can the platform prove it?
+```
+
+## Zama FHE Roadmap
+
+Zama is not wired into the current production flow yet.
+
+It remains part of the privacy roadmap because Early should eventually support private identity and private timestamp computation. The goal is to encrypt sensitive curator data before any public chain interaction can reveal it.
+
+Planned Zama work:
+
+- consume the Early Proof Artifact,
+- encrypt or encode the user's Web2 identity,
+- encrypt or transform the timestamp,
+- compare encrypted timestamps against campaign cutoffs,
+- support private eligibility for creator rewards.
+
+The current privacy model is commitment-based. The next privacy model is FHE-backed.
 
 ## Tech Stack
 
@@ -195,8 +296,12 @@ The current repository has the Reclaim proof layer and artifact layer wired. Zam
 - Tailwind CSS
 - Framer Motion
 - GSAP
+- Lenis
 - Reclaim Protocol JS SDK
 - Supabase Postgres via REST API
+- Stellar Wallets Kit
+- Stellar SDK
+- Soroban smart contracts
 
 ## Environment Variables
 
@@ -211,25 +316,29 @@ Required values:
 ```txt
 RECLAIM_APP_ID=
 RECLAIM_APP_SECRET=
-RECLAIM_PROVIDER_ID=
+RECLAIM_PROVIDER_ID=fe0767e9-8172-48c0-ba64-702703c4c745
 RECLAIM_PROVIDER_VERSION=1.0.0
 RECLAIM_REQUIRE_TEE_ATTESTATION=false
+
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
 STELLAR_NETWORK=testnet
 STELLAR_RPC_URL=https://soroban-testnet.stellar.org
 STELLAR_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
-STELLAR_RECEIPT_CONTRACT_ID=
+STELLAR_EXPLORER_URL=https://testnet.stellarchain.io
+STELLAR_RECEIPT_CONTRACT_ID=CDBE7NFQPVD5LXU7TJVQTXZNBYIH75VXQW24DA7LARS3MA5XLT2V2VRM
+STELLAR_RECLAIM_VERIFIER_CONTRACT_ID=CA3EMXR6JOOTNP44T3OAJFMMMGKRRETDJKBLZP2RU3SIY4SDFAH54DU5
+STELLAR_RECLAIM_VERIFIER_FUNCTION_NAME=verify_proof
 ```
 
-Notes:
+Keep these secret:
 
-- `RECLAIM_APP_SECRET` must stay server-side.
-- `SUPABASE_SERVICE_ROLE_KEY` must stay server-side.
-- Keep `RECLAIM_REQUIRE_TEE_ATTESTATION=false` while testing mobile verifier flows if Reclaim returns valid proofs without verifier TEE material. Set it to `true` only when the proof route consistently includes valid TEE attestation.
-- For Vercel, set `NEXT_PUBLIC_APP_URL` to the deployed URL, for example `https://early-psi.vercel.app`.
-- `STELLAR_RECEIPT_CONTRACT_ID` is optional during local UI testing. Set it after deploying `contracts/stellar-receipt` to enable real Soroban receipt publishing.
+- `RECLAIM_APP_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+For deployed testing, set `NEXT_PUBLIC_APP_URL` to your deployed app URL so Reclaim callbacks return to the correct domain.
 
 ## Supabase Setup
 
@@ -239,9 +348,9 @@ Run the SQL in:
 supabase/reclaim_proof_sessions.sql
 ```
 
-The table stores Reclaim proof sessions and enables Row Level Security. The app accesses this table only from server routes using the Supabase service role key.
+The table stores proof session state, the verified artifact, verifier transaction data, receipt transaction data, and callback metadata. The app reads and writes it only from server routes using the Supabase service role key.
 
-For this development milestone, the full Reclaim proof payload is stored as `jsonb`. A later privacy hardening pass should minimize or redact stored proof data before production use.
+Keep Row Level Security enabled.
 
 ## Local Development
 
@@ -263,7 +372,7 @@ Open:
 http://localhost:3000
 ```
 
-For local proof callbacks, Reclaim may not be able to POST back to `localhost`. Use the deployed Vercel URL or a tunnel when testing the full callback flow.
+Local UI work is fine on `localhost`. For full Reclaim callbacks, use a deployed HTTPS URL or a tunnel, because Reclaim needs to POST the proof callback back to the app.
 
 ## Scripts
 
@@ -274,11 +383,11 @@ pnpm start
 pnpm dev
 ```
 
-## Deployment
+## Deploy
 
-The app is Vercel-ready.
+Deploy to any host that supports Next.js App Router server routes.
 
-Use:
+For Vercel:
 
 ```txt
 Framework Preset: Next.js
@@ -287,154 +396,25 @@ Build Command: pnpm build
 Output Directory: leave blank
 ```
 
-Add all required environment variables in Vercel before deploying.
-
-## Platform Roadmap
-
-Early is not meant to be an X-only proof app. X is the first surface because it gives us the cleanest primitive to validate: a like as endorsement, a reply as timestamp, and an authenticated server response as proof.
-
-The larger protocol is multi-platform. Anywhere people discover, endorse, and participate before the crowd arrives can become part of a curator's resume.
-
-### X: The First Proof Surface
-
-X is the current working platform.
-
-The story is simple: you see a post before the algorithm turns it into consensus. You like it. You reply. Later, the post becomes part of the culture. Early lets you prove that your endorsement happened before the rest of the network caught up.
-
-The proof primitive:
-
-- **Like as endorsement**: `favorited: true` proves positive interaction with the parent post.
-- **Reply as timestamp**: the reply's `created_at` field anchors when you showed up.
-- **Server record as source of truth**: the timestamp comes from X's authenticated response, not from a screenshot or local clock.
-
-Near-term X work:
-
-- Parse and display real extracted proof fields more cleanly.
-- Add proof payload minimization before storage.
-- Add stronger retry, failure, and timeout states.
-- Explore Reclaim browser extension UX to reduce repeated portal logins.
-
-### YouTube: The First Comment Before The World Arrived
-
-YouTube is where Early starts to feel less like a crypto primitive and more like cultural memory.
-
-An artist drops a video. A producer posts a beat breakdown. A filmmaker uploads a strange little short with 300 views. You watch it early, leave a comment, maybe like it, and move on. Months later that video has millions of views, the artist is everywhere, and the comments are full of people saying they always knew.
-
-This is where reward mechanics become obvious. Imagine Drake, Adele, Rihanna, or a completely unknown future star releasing a new video. You are there in the first hour, not because a campaign told you to farm engagement, but because you genuinely found it. Later, if the artist wants to reward the first wave of real fans with concert access, merch, private listening sessions, or a one-off fan pass, Early can become the proof layer.
-
-Early should let you prove something more precise:
-
-> I commented on this video in the first hour. I was there before the crowd arrived.
-
-And for creators:
-
-> These are the people who showed up before the world did.
-
-The proof target:
-
-- authenticated YouTube session,
-- comment tied to a specific `videoId`,
-- comment timestamp,
-- eventually current video metrics for Discovery Delta,
-- future reward eligibility derived from a verified early interaction.
-
-The likely technical path is YouTube's InnerTube browser API and comment history surfaces, especially requests around:
-
-```txt
-POST https://www.youtube.com/youtubei/v1/browse
-https://www.youtube.com/feed/history/comment_history
-```
-
-Technical status: future provider. This needs live validation before implementation because YouTube often returns relative timestamps like `"2 years ago"`, which are too weak for Early. The provider should only move forward if the authenticated response exposes an absolute timestamp or another strong time anchor.
-
-### Instagram: "You Found Me Before I Was Famous"
-
-Instagram is the emotional heart of the creator version of Early.
-
-There is a whole genre of posts from artists, musicians, stylists, designers, dancers, and small creators saying things like:
-
-> POV: you discovered me before I was famous.
-
-Or:
-
-> If you bring this video to one of my concerts one day, you get a free pass because you were here early.
-
-Or simply:
-
-> You are interacting with my art before anyone knows my name.
-
-Early turns that feeling into something creators and fans can actually keep. Not as a gimmick, but as a mutual receipt: the creator can recognize early believers, and the early believers can prove they were part of the story before the audience became obvious.
-
-For Instagram, that matters because the promise is often already social. The creator is already saying, "remember you were here." Early gives both sides a way to actually remember.
-
-The proof target:
-
-- authenticated Instagram session,
-- comment, save, or like on a post or reel,
-- creator/post identity,
-- timestamp where available,
-- optional public post metadata for Discovery Delta.
-
-Technical status: research phase. Instagram is more fragile than X and YouTube. It rate-limits aggressively, changes internal endpoints often, and may not expose stable authenticated history in a clean web response. Comments may be more realistic than likes or saves at first because comments are public objects attached to posts. Likes and saves are still desirable, but they need separate validation.
-
-### Farcaster And Other Cultural Surfaces
-
-The same pattern can extend anywhere endorsement and timestamped participation exist:
-
-- Farcaster casts and reactions.
-- Music platforms where early listeners leave timestamped interactions.
-- Writing platforms where early comments signal attention before an essay spreads.
-- Niche communities where early participation matters more than raw follower count.
-
-The long-term protocol is platform-agnostic. Each provider only needs a trustworthy way to prove:
-
-```txt
-who interacted -> with what -> when -> before what later scale
-```
-
-### Zama FHE
-
-Once Early has stable proof artifacts, Zama becomes the privacy layer.
-
-Zama protects the parts of the proof that should not be permanently exposed on a public chain: the user's Web2 handle, exact timestamp, and private taste graph.
-
-The next major protocol layer is private computation:
-
-- consume the Early Proof Artifact as the input boundary,
-- encrypt the user's handle,
-- encrypt or transform the reply timestamp,
-- submit encrypted values to an fhEVM contract,
-- compute early-status without exposing the user's Web2 identity publicly.
-
-### Stellar / Soroban
-
-Stellar/Soroban can make private taste publicly legible without exposing the sensitive parts.
-
-The first Stellar shape should be a receipt layer, not the whole privacy system. Zama protects private curator identity. Stellar can publish commitments, proof hashes, and receipt metadata that make Early artifacts portable in the Stellar ecosystem.
-
-For ZK-on-Stellar work, Early can add a public receipt or verifier layer:
-
-- store `publicCommitment`,
-- store `proofHash`,
-- register cultural discovery receipts,
-- verify proof artifacts or proof hashes in a Soroban contract,
-- make the proof-of-discovery legible inside the Stellar ecosystem.
-
-The current app includes the first Stellar milestone: wallet connection, receipt preparation, Supabase receipt tracking, and a minimal Soroban receipt registry scaffold. Once `STELLAR_RECEIPT_CONTRACT_ID` is configured, a verified Early artifact can be signed by the connected wallet and published as a public testnet receipt. The current app does not yet verify Reclaim proofs on Stellar.
+Add the environment variables before deploying.
 
 ## Security Notes
 
 - Do not commit `.env.local`.
-- Do not paste `RECLAIM_APP_SECRET` or `SUPABASE_SERVICE_ROLE_KEY` in chat, issues, commits, or frontend code.
+- Do not expose `RECLAIM_APP_SECRET`.
+- Do not expose `SUPABASE_SERVICE_ROLE_KEY`.
 - Keep Supabase Row Level Security enabled.
-- Use dedicated test X accounts during repeated Reclaim portal testing to avoid X login throttling.
+- Use test accounts while repeatedly testing X login flows.
+- Keep raw proof payload retention short before production.
 
 ## Why Early Matters
 
-The internet remembers what went viral. It does not remember who believed first.
+Every viral moment had a witness before it went viral.
 
-Early is for the people who find signal before consensus, who notice the artist before the chart, the thought before the trend, the builder before the market.
+Every famous artist had a fan before the fame.
 
-You were early.
+Every idea had a believer before the world believed.
 
-Now prove it.
+Early is for those people.
+
+Your taste has receipts now.
