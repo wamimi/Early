@@ -5,7 +5,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Early",
-  description: "A private proof-of-discovery interface for cultural scouts."
+  description: "A private proof-of-discovery interface for cultural scouts.",
+  icons: {
+    icon: "/early-logo.svg",
+    apple: "/early-logo.svg"
+  }
 };
 
 export default function RootLayout({
