@@ -32,5 +32,9 @@ pnpm-debug.log*
 # Vercel
 .vercel/
 
+# Local Codex skills/tooling
+.agents/
+skills-lock.json
+
 # TypeScript
 *.tsbuildinfo
