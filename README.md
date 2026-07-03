@@ -114,7 +114,7 @@ Then Stellar enters.
 
 Early serializes the verified Reclaim proof material and sends it through a Stellar testnet verifier contract. That verifier checks the Reclaim witness signature on-chain. After that succeeds, Early lets the wallet publish a receipt to a separate Soroban receipt contract.
 
-So the current  path is:
+So the current hackathon path is:
 
 ```txt
 X authenticated server data
