@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { AnimatePresence, motion } from "framer-motion";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Lenis from "lenis";
 
 type ProofState = "idle" | "zktls" | "fhe" | "verified";
 type ProofSessionStatus = "pending" | "succeeded" | "failed";
@@ -87,15 +89,105 @@ const ease = [0.16, 1, 0.3, 1] as const;
 const stages: Record<"zktls" | "fhe", ProofStage> = {
   zktls: {
     state: "zktls",
-    label: "zkTLS EXTRACTION",
-    caption: "Initializing local zkTLS session container...",
+    label: "PULLING THE RECEIPT",
+    caption: "Reclaim is checking the moment from X's servers.",
     target: 40
   },
   fhe: {
     state: "fhe",
-    label: "ZAMA FHE BLINDING",
-    caption: "Encrypting social handle & timestamp client-side via fhevmjs...",
+    label: "MAKING IT YOURS",
+    caption: "Early is turning the proof into a card and a Stellar receipt path.",
     target: 85
+  }
+};
+
+const platformStories = [
+  {
+    name: "X",
+    icon: "https://cdn.simpleicons.org/x/F2EAD8",
+    status: "live now",
+    title: "The tweet before the timeline caught up.",
+    lines: [
+      "You saw it when it had 12 likes.",
+      "You felt it before anyone retweeted it.",
+      "That moment lives in X's servers forever.",
+      "Early just makes it yours to keep."
+    ]
+  },
+  {
+    name: "YouTube",
+    icon: "https://cdn.simpleicons.org/youtube/F2EAD8",
+    status: "coming soon",
+    title: "The first hour under the video.",
+    lines: [
+      "Before the algorithm pushed it.",
+      "Before the comments flooded in.",
+      "You were comment #7 on something that now has 40 million views."
+    ]
+  },
+  {
+    name: "Instagram",
+    icon: "https://cdn.simpleicons.org/instagram/F2EAD8",
+    status: "coming soon",
+    title: "The creator before the crowd arrived.",
+    lines: [
+      "They said, \"POV: you discover me before I'm famous.\"",
+      "You did.",
+      "Now you can prove it for the day they finally ask."
+    ]
+  }
+] as const;
+
+const proofSteps = [
+  {
+    title: "You were already there",
+    body: "Find the post. The comment. The like. The thing you did before you knew it mattered."
+  },
+  {
+    title: "Early pulls the receipt",
+    body: "Your authenticated session proves the timestamp. Not your word against theirs. Cryptographic fact."
+  },
+  {
+    title: "The proof lives forever",
+    body: "On-chain. Private. Yours. For whenever the moment finally means something."
+  }
+] as const;
+
+const manifestoLines = [
+  "Every viral moment had a witness before it went viral.",
+  "Every famous artist had a fan before the fame.",
+  "Every idea had a believer before the world believed.",
+  "The internet never built them a way to prove it.",
+  "Until now."
+] as const;
+
+const headlineWords = "The internet never remembers who was first.".split(" ");
+
+const revealContainer = {
+  hidden: {},
+  show: {
+    transition: {
+      staggerChildren: 0.11
+    }
+  }
+};
+
+const revealItem = {
+  hidden: { opacity: 0, y: 50, scale: 0.96 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.7, ease }
+  }
+};
+
+const lineReveal = {
+  hidden: { opacity: 0, x: -10 },
+  show: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.5, ease }
   }
 };
 
@@ -159,18 +251,81 @@ function readInitialSessionId() {
   return params.get("sessionId") ?? window.localStorage.getItem(sessionStorageKey) ?? "";
 }
 
-function getCardRows(session: ProofSessionResponse | null) {
+function getXPostCreatedAt(tweetId: string | null | undefined) {
+  if (!tweetId || !/^\d+$/.test(tweetId)) {
+    return null;
+  }
+
+  try {
+    const twitterEpochMs = BigInt("1288834974657");
+    const timestampMs = (BigInt(tweetId) >> BigInt(22)) + twitterEpochMs;
+    const date = new Date(Number(timestampMs));
+    return Number.isNaN(date.getTime()) ? null : date;
+  } catch {
+    return null;
+  }
+}
+
+function getReplyCreatedAt(timestamp: string | null | undefined) {
+  if (!timestamp) {
+    return null;
+  }
+
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatEarlyDelta(parentDate: Date | null, replyDate: Date | null) {
+  if (!parentDate || !replyDate) {
+    return "timestamp locked";
+  }
+
+  const minutes = Math.max(0, Math.round((replyDate.getTime() - parentDate.getTime()) / 60000));
+
+  if (minutes < 2) {
+    return "inside the first minute";
+  }
+
+  if (minutes < 60) {
+    return `${minutes}m after the post`;
+  }
+
+  const hours = Math.round(minutes / 60);
+
+  if (hours < 48) {
+    return `${hours}h after the post`;
+  }
+
+  const days = Math.round(hours / 24);
+  return `${days}d after the post`;
+}
+
+function getTargetHandle(session: ProofSessionResponse | null) {
   const parameters = session?.extractedParameters;
+  const identity = session?.proofArtifact?.screenName ?? parameters?.screen_name ?? parameters?.in_reply_to_screen_name ?? "this";
+  return `@${String(identity).replace(/^@/, "")}`;
+}
+
+function getProofDetails(session: ProofSessionResponse | null) {
   const artifact = session?.proofArtifact;
-  const identity = artifact?.screenName ?? parameters?.screen_name ?? parameters?.in_reply_to_screen_name ?? "unknown";
-  const timestamp = artifact?.replyTimestamp ?? parameters?.created_at ?? "pending";
-  const commitment = artifact?.publicCommitment ? `${artifact.publicCommitment.slice(0, 19)}...${artifact.publicCommitment.slice(-8)}` : "pending";
+  const timestamp = artifact?.replyTimestamp ?? session?.extractedParameters?.created_at ?? "pending";
+  const commitment = artifact?.publicCommitment ? `${artifact.publicCommitment.slice(0, 18)}...${artifact.publicCommitment.slice(-8)}` : "pending";
 
   return [
-    ["Identity Target", `@${identity.replace(/^@/, "")} (Blinded)`],
-    ["Discovery Timestamp", `${timestamp} (Hidden)`],
-    ["Public Commitment", commitment]
+    ["Reply proved", timestamp],
+    ["Public commitment", commitment]
   ] as const;
+}
+
+function getShareCardCopy(session: ProofSessionResponse | null) {
+  const artifact = session?.proofArtifact;
+  const parentDate = getXPostCreatedAt(artifact?.parentContentId ?? session?.tweetId);
+  const replyDate = getReplyCreatedAt(artifact?.replyTimestamp ?? session?.extractedParameters?.created_at);
+
+  return {
+    handle: getTargetHandle(session),
+    delta: formatEarlyDelta(parentDate, replyDate)
+  };
 }
 
 function isBusyStatus(status: string | null | undefined) {
@@ -318,14 +473,21 @@ function AmbientField() {
 function Header({ wallet, onConnectWallet }: { wallet: WalletState; onConnectWallet: () => void }) {
   return (
     <header className="relative z-10 flex w-full items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
-      <div className="font-mono text-xs uppercase tracking-[0.24em] text-zinc-300/80">Early v1.0.0-beta</div>
+      <div className="flex items-center gap-3">
+        <div className="relative h-8 w-8 overflow-hidden rounded-full border border-apothecary-sage/30 bg-apothecary-moss/35 shadow-garden-glow">
+          <span className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-apothecary-neon" />
+          <span className="absolute left-[1.05rem] top-1/2 h-px w-3 -translate-y-1/2 bg-apothecary-sage/80" />
+          <span className="absolute right-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-receipt-bone/80" />
+        </div>
+        <div className="text-lg font-semibold tracking-normal text-receipt-bone">Early</div>
+      </div>
       <button
         type="button"
         onClick={onConnectWallet}
         disabled={wallet.isConnecting}
         className="focus-garden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md transition duration-300 hover:border-apothecary-sage/40 hover:bg-apothecary-moss/20 disabled:cursor-wait disabled:text-zinc-500"
       >
-        {wallet.address ? truncateMiddle(wallet.address) : wallet.isConnecting ? "Connecting..." : "Connect Identity"}
+        {wallet.address ? truncateMiddle(wallet.address) : wallet.isConnecting ? "Connecting..." : "Connect Wallet"}
       </button>
     </header>
   );
@@ -342,64 +504,170 @@ function IdleView({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   proofError: string;
 }) {
+  const heroRef = useRef<HTMLElement>(null);
+  const manifestoRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!heroRef.current) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      return;
+    }
+
+    const context = gsap.context(() => {
+      gsap.fromTo(
+        ".hero-word",
+        { opacity: 0, y: 60, filter: "blur(4px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.7, ease: "power3.out", stagger: 0.08, delay: 0.2 }
+      );
+
+      gsap.fromTo(
+        ".hero-you",
+        { opacity: 0, y: 24, filter: "blur(5px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.7, ease: "power3.out", delay: 0.86 }
+      );
+
+      gsap.fromTo(
+        ".hero-body",
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.7, ease: "power3.out", delay: 1.06 }
+      );
+
+      gsap.fromTo(
+        ".hero-form",
+        { opacity: 0, y: 34 },
+        { opacity: 1, y: 0, duration: 0.75, ease: "power3.out", delay: 1.22 }
+      );
+    }, heroRef);
+
+    return () => context.revert();
+  }, []);
+
+  useEffect(() => {
+    if (!manifestoRef.current) {
+      return;
+    }
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      return;
+    }
+
+    const context = gsap.context(() => {
+      gsap.utils.toArray<HTMLElement>(".manifesto-line").forEach((line) => {
+        gsap.fromTo(
+          line,
+          { opacity: 0.16, y: 22, filter: "blur(2px)" },
+          {
+            opacity: 1,
+            y: 0,
+            filter: "blur(0px)",
+            ease: "none",
+            scrollTrigger: {
+              trigger: line,
+              start: "top 82%",
+              end: "top 48%",
+              scrub: 0.45
+            }
+          }
+        );
+      });
+
+      gsap.fromTo(
+        ".footer-proof-cta",
+        { opacity: 0.55, scale: 0.98 },
+        {
+          opacity: 1,
+          scale: 1,
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: ".footer-proof-cta",
+            start: "top 88%",
+            once: true
+          }
+        }
+      );
+    }, manifestoRef);
+
+    return () => context.revert();
+  }, []);
+
   return (
     <motion.section
       key="idle"
+      ref={heroRef}
       initial={{ opacity: 0, y: 22, filter: "blur(8px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       exit={{ opacity: 0, y: -18, filter: "blur(8px)" }}
       transition={{ duration: 0.8, ease }}
-      className="relative z-10 mx-auto flex min-h-[calc(100svh-86px)] w-full max-w-7xl flex-col justify-center px-5 pb-16 pt-8 sm:px-8 lg:px-12"
+      className="relative z-10 mx-auto flex w-full max-w-7xl flex-col px-5 pb-24 pt-10 sm:px-8 lg:px-12"
     >
-      <div className="grid items-end gap-10 2xl:grid-cols-[minmax(0,1fr)_25rem]">
+      <div className="grid min-h-[calc(100svh-120px)] items-center gap-10 2xl:grid-cols-[minmax(0,1fr)_25rem]">
         <div className="max-w-6xl">
           <motion.h1
             layout
-            className="max-w-6xl text-balance text-[clamp(3.2rem,8.4vw,8.8rem)] font-semibold leading-[0.88] tracking-normal text-receipt-bone"
+            className="max-w-6xl text-balance text-[clamp(3.25rem,8.5vw,8rem)] font-semibold leading-[0.9] tracking-normal text-receipt-bone"
           >
-            Prove you found them first. Privately.
+            {headlineWords.map((word, index) => (
+              <span key={`${word}-${index}`} className="hero-word inline-block">
+                {word}
+                {index < headlineWords.length - 1 ? "\u00A0" : ""}
+              </span>
+            ))}
           </motion.h1>
-          <p className="mt-8 max-w-2xl text-lg leading-8 text-zinc-300 sm:text-xl">
-            Early turns your authenticated X activity into a zkTLS proof, then blinds the sensitive handle and timestamp with Zama FHE before anything touches chain.
+          <p className="hero-you mt-8 text-4xl font-semibold tracking-normal text-apothecary-mint sm:text-6xl">
+            You do.
+          </p>
+          <p className="hero-body mt-7 max-w-2xl text-xl leading-8 text-zinc-300 sm:text-2xl">
+            Early is the proof that your taste was always this good.
           </p>
         </div>
 
         <div className="hidden 2xl:block">
           <div className="glass-panel relative overflow-hidden rounded-[2rem] p-6">
-            <div className="mb-16 h-32 rounded-[1.4rem] border border-apothecary-sage/20 bg-[radial-gradient(circle_at_30%_20%,rgba(109,255,156,0.18),transparent_35%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
-            <div className="space-y-3 font-mono text-xs uppercase tracking-[0.22em] text-zinc-400">
+            <div className="mb-12 min-h-36 rounded-[1.4rem] border border-apothecary-sage/20 bg-[radial-gradient(circle_at_20%_22%,rgba(109,255,156,0.2),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] p-5">
+              <p className="max-w-[14rem] text-2xl font-semibold leading-tight text-receipt-bone">your taste has receipts now.</p>
+            </div>
+            <div className="space-y-3 text-sm text-zinc-400">
               <div className="flex justify-between border-t border-white/10 pt-4">
-                <span>Transport</span>
-                <span className="text-apothecary-sage">zkTLS</span>
+                <span>prove the action</span>
+                <span className="font-mono text-apothecary-sage">Reclaim</span>
               </div>
               <div className="flex justify-between border-t border-white/10 pt-4">
-                <span>Privacy</span>
-                <span className="text-apothecary-mint">FHE</span>
+                <span>verify the proof</span>
+                <span className="font-mono text-apothecary-mint">Stellar</span>
               </div>
               <div className="flex justify-between border-t border-white/10 pt-4">
-                <span>Dox surface</span>
-                <span className="text-apothecary-lotus">Shielded</span>
+                <span>keep the signal</span>
+                <span className="font-mono text-apothecary-lotus">private</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <form onSubmit={onSubmit} className="mt-12 w-full max-w-4xl">
+      <form onSubmit={onSubmit} className="hero-form -mt-20 w-full max-w-4xl 2xl:-mt-32">
         <div className="glass-panel group flex flex-col gap-3 rounded-[1.65rem] p-3 transition duration-300 focus-within:border-apothecary-sage/40 focus-within:shadow-garden-glow sm:flex-row sm:items-center">
           <input
             value={tweetUrl}
             onChange={(event) => setTweetUrl(event.target.value)}
-            placeholder="Paste an X thread reply URL..."
+            placeholder="Paste an X post URL..."
             aria-label="X thread reply URL"
             className="focus-garden min-h-16 flex-1 rounded-[1.2rem] bg-transparent px-4 text-base text-zinc-100 placeholder:text-zinc-500 sm:text-lg"
           />
           <button
             type="submit"
             disabled={!tweetUrl.trim()}
-            className="focus-garden min-h-14 rounded-[1.15rem] bg-receipt-bone px-6 text-sm font-semibold text-receipt-ink transition duration-300 hover:bg-white disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-zinc-500"
+            className="proof-cta focus-garden min-h-14 rounded-[1.15rem] px-6 text-sm font-semibold text-velvet-950 transition duration-300 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-zinc-500"
           >
-            Generate Proof
+            Prove You Were There
           </button>
         </div>
         {proofError && (
@@ -408,6 +676,89 @@ function IdleView({
           </p>
         )}
       </form>
+
+      <motion.div
+        variants={revealContainer}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        className="mt-16 grid w-full gap-4 lg:grid-cols-[1.1fr_0.95fr_0.95fr]"
+      >
+        {platformStories.map((story, index) => (
+          <motion.div
+            key={story.name}
+            variants={revealItem}
+            className={clsx(
+              "group rounded-[1.6rem] border p-5 backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:border-apothecary-neon/35 hover:shadow-garden-glow",
+              index === 0 ? "border-apothecary-sage/25 bg-apothecary-moss/25 shadow-garden-glow" : "border-white/10 bg-white/[0.035]"
+            )}
+          >
+            <div className="flex items-start justify-between gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={story.icon} alt={`${story.name} icon`} className="h-6 w-6 opacity-90 transition duration-300 group-hover:opacity-100" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-2.5 py-1 font-mono text-[0.65rem] text-zinc-400">
+                {story.status === "live now" && <span className="live-dot" />}
+                {story.status}
+              </span>
+            </div>
+            <h2 className="mt-7 text-2xl font-semibold leading-tight text-receipt-bone">{story.title}</h2>
+            <motion.div variants={revealContainer} className="mt-5 space-y-3 text-sm leading-6 text-zinc-400">
+              {story.lines.map((line) => (
+                <motion.p key={line} variants={lineReveal}>
+                  {line}
+                </motion.p>
+              ))}
+            </motion.div>
+          </motion.div>
+        ))}
+      </motion.div>
+
+      <motion.section
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.25 }}
+        variants={revealContainer}
+        className="mt-28 grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start"
+      >
+        <motion.div variants={{ hidden: { opacity: 0, x: -40 }, show: { opacity: 1, x: 0, transition: { duration: 0.7, ease } } }}>
+          <h2 className="max-w-3xl text-4xl font-semibold leading-tight text-receipt-bone sm:text-6xl">
+            No screenshots. No timestamps you set yourself.
+          </h2>
+          <p className="mt-6 max-w-xl text-xl leading-8 text-zinc-300">
+            The proof comes from their servers, not yours.
+          </p>
+        </motion.div>
+
+        <motion.div variants={revealContainer} className="grid gap-3">
+          {proofSteps.map((step, index) => (
+            <motion.div key={step.title} variants={{ hidden: { opacity: 0, x: 30 }, show: { opacity: 1, x: 0, transition: { duration: 0.62, ease } } }} className="group rounded-[1.5rem] border border-white/10 bg-white/[0.035] p-5 backdrop-blur-md transition duration-300 hover:border-apothecary-sage/35 hover:bg-white/[0.055]">
+              <div className="font-mono text-xs text-zinc-500 transition duration-300 group-hover:text-apothecary-neon">{String(index + 1).padStart(2, "0")}</div>
+              <h3 className="mt-4 text-2xl font-semibold text-receipt-bone">{step.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-zinc-400">{step.body}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+      </motion.section>
+
+      <section ref={manifestoRef} className="mx-auto mt-28 max-w-5xl text-center">
+        <div className="space-y-7 text-balance text-3xl font-semibold leading-tight text-receipt-bone sm:text-5xl">
+          {manifestoLines.map((line) => (
+            <p key={line} className={clsx("manifesto-line", line === "Until now." && "text-apothecary-mint drop-shadow-[0_0_22px_rgba(109,255,156,0.22)]")}>
+              {line}
+            </p>
+          ))}
+        </div>
+        <div className="mt-14">
+          <p className="text-2xl font-semibold text-apothecary-mint sm:text-4xl">Your taste has receipts now.</p>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="footer-proof-cta proof-cta focus-garden mt-7 rounded-full px-7 py-3 text-sm font-semibold text-velvet-950 transition"
+          >
+            Prove You Were There
+          </button>
+        </div>
+      </section>
     </motion.section>
   );
 }
@@ -439,9 +790,9 @@ function LoadingView({
 
     try {
       await window.navigator.clipboard.writeText(mobileReclaimUrl);
-      setCopyStatus("Mobile verification link copied.");
+      setCopyStatus("Phone link copied.");
     } catch {
-      setCopyStatus("Copy failed. Open the mobile link and share it to your phone.");
+      setCopyStatus("Could not copy. Open the phone link and send it to your device.");
     }
   }
 
@@ -470,7 +821,7 @@ function LoadingView({
                   rel="noreferrer"
                   className="focus-garden rounded-full bg-receipt-bone px-5 py-3 text-sm font-semibold text-receipt-ink transition duration-300 hover:bg-white"
                 >
-                  Open portal
+                  Open Reclaim
                 </a>
               )}
               {mobileReclaimUrl && (
@@ -480,7 +831,7 @@ function LoadingView({
                   rel="noreferrer"
                   className="focus-garden rounded-full border border-apothecary-sage/30 bg-apothecary-moss/30 px-5 py-3 text-sm font-semibold text-apothecary-mint transition duration-300 hover:border-apothecary-neon/50 hover:bg-apothecary-fern/30"
                 >
-                  Open mobile verifier
+                  Open on phone
                 </a>
               )}
               {mobileReclaimUrl && (
@@ -489,7 +840,7 @@ function LoadingView({
                   onClick={copyMobileLink}
                   className="focus-garden rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:border-apothecary-sage/40 hover:text-apothecary-mint"
                 >
-                  Copy mobile link
+                  Copy phone link
                 </button>
               )}
               <button
@@ -497,14 +848,14 @@ function LoadingView({
                 onClick={onReset}
                 className="focus-garden rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition duration-300 hover:border-apothecary-sage/40 hover:text-apothecary-mint"
               >
-                Start over
+                Start again
               </button>
             </div>
             {(sessionId || copyStatus) && (
               <div className="mt-6 grid gap-2 font-mono text-[0.7rem] uppercase tracking-[0.16em] text-zinc-500">
                 {sessionId && (
                   <p>
-                    Session <span className="text-zinc-300">{sessionId}</span> is polling in Early. Complete the proof on any device and leave this tab open.
+                    Early is waiting here. Finish the proof on your phone, then come back to this tab.
                   </p>
                 )}
                 {copyStatus && <p className="text-apothecary-sage">{copyStatus}</p>}
@@ -519,7 +870,7 @@ function LoadingView({
 
         <div className="mt-12">
           <div className="mb-4 flex items-center justify-between font-mono text-xs uppercase tracking-[0.2em] text-zinc-400">
-            <span>Local proof pipeline</span>
+            <span>Proof path</span>
             <span className={clsx(isFhe ? "text-apothecary-neon" : "text-apothecary-sage")}>{Math.round(progress)}%</span>
           </div>
           <div className="relative h-3 overflow-hidden rounded-full bg-white/[0.06]">
@@ -561,7 +912,8 @@ function VerifiedView({
   onVerifyReclaimProof: () => void;
   onPublishReceipt: () => void;
 }) {
-  const rows = getCardRows(session);
+  const shareCard = getShareCardCopy(session);
+  const proofDetails = getProofDetails(session);
   const receiptStatus = publishState.status !== "idle" ? publishState.status : session?.stellarReceipt?.status;
   const txHash = publishState.txHash || session?.stellarReceipt?.txHash || "";
   const explorerUrl = publishState.explorerUrl || (txHash ? `https://testnet.stellarchain.io/transactions/${txHash}` : "");
@@ -577,30 +929,30 @@ function VerifiedView({
   const primaryAction =
     !wallet.address
       ? {
-          label: wallet.isConnecting ? "Connecting..." : "Connect Stellar Wallet",
+          label: wallet.isConnecting ? "Connecting..." : "Connect Wallet",
           onClick: onConnectWallet,
           disabled: wallet.isConnecting,
-          message: "Bind this proof to your Stellar testnet identity before writing anything public."
+          message: "Your wallet owns the receipt. Your X identity stays off-chain."
         }
       : !hasOnchainVerifier
         ? {
-            label: isVerifierBusy ? "Verifying..." : "Verify Reclaim Proof",
+            label: isVerifierBusy ? "Checking..." : "Verify on Stellar",
             onClick: onVerifyReclaimProof,
             disabled: !canVerify,
-            message: "This checks the Reclaim witness signature on Stellar before the receipt is issued."
+            message: "First, Stellar checks that the Reclaim proof is real."
           }
         : !hasPublishedReceipt
           ? {
-              label: isReceiptBusy ? "Publishing..." : "Publish Stellar Receipt",
+              label: isReceiptBusy ? "Keeping..." : "Keep the Receipt",
               onClick: onPublishReceipt,
               disabled: !canPublish,
-              message: "Publish the privacy-safe commitment owned by your wallet."
+              message: "Now keep the moment as a public receipt without exposing the private details."
             }
           : {
-              label: "Receipt Published",
+              label: "Receipt Kept",
               onClick: onPublishReceipt,
               disabled: true,
-              message: "Your Early proof now has a public Stellar receipt."
+              message: "This one is yours now."
             };
   const verifierTone = verifierStatus === "verified" ? "success" : verifierStatus === "failed" ? "danger" : wallet.address ? "warning" : "default";
   const actionMessage = publishState.message || verifierState.message || primaryAction.message;
@@ -620,43 +972,52 @@ function VerifiedView({
           initial={{ rotateX: 8, rotateZ: -1.2 }}
           animate={{ rotateX: 0, rotateZ: 0 }}
           transition={{ type: "spring", stiffness: 120, damping: 18 }}
-          className="relative overflow-hidden rounded-[2.1rem] border border-white/15 bg-[linear-gradient(135deg,rgba(242,234,216,0.14),rgba(255,255,255,0.045)_42%,rgba(47,109,77,0.18))] p-5 shadow-ticket backdrop-blur-xl sm:p-8"
+          className="relative overflow-hidden rounded-[2.1rem] border border-white/15 bg-[linear-gradient(135deg,rgba(242,234,216,0.16),rgba(255,255,255,0.05)_46%,rgba(47,109,77,0.2))] p-5 shadow-ticket backdrop-blur-xl sm:p-8"
         >
           <div className="absolute inset-y-8 left-0 w-4 -translate-x-1/2 rounded-full bg-velvet-950" />
           <div className="absolute inset-y-8 right-0 w-4 translate-x-1/2 rounded-full bg-velvet-950" />
           <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+          <div className="absolute right-8 top-8 h-28 w-28 rounded-full border border-apothecary-sage/15 bg-apothecary-neon/10 blur-sm" />
 
           <div className="relative z-10 flex items-start justify-between gap-6">
             <div>
-              <p className="font-mono text-xs uppercase tracking-[0.28em] text-zinc-400">Early Card</p>
-              <h2 className="mt-4 font-mono text-3xl font-semibold tracking-normal text-receipt-bone sm:text-5xl">
-                CULTURAL_SCOUT_01
+              <p className="font-mono text-xs text-zinc-400">Early card</p>
+              <h2 className="mt-8 max-w-3xl text-[clamp(3.5rem,8vw,7rem)] font-semibold leading-[0.86] tracking-normal text-receipt-bone">
+                I was early to this
               </h2>
             </div>
-            <span className="rounded-full border border-apothecary-neon/25 bg-apothecary-moss/45 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.18em] text-apothecary-mint">
-              Encrypted
+            <span className="rounded-full border border-apothecary-neon/25 bg-apothecary-moss/45 px-3 py-1.5 font-mono text-xs text-apothecary-mint">
+              {hasOnchainVerifier ? "Stellar verified" : "Proof ready"}
             </span>
           </div>
 
-          <div className="relative z-10 mt-12 space-y-3">
-            {rows.map(([label, value]) => (
-              <div key={label} className="grid gap-2 rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-                <span className="font-mono text-xs uppercase tracking-[0.2em] text-zinc-500">{label} -&gt;</span>
-                <span className="min-w-0 break-words font-mono text-sm text-zinc-100 sm:text-right sm:text-base">{value}</span>
-              </div>
-            ))}
-
-            <div className="rounded-2xl border border-apothecary-neon/30 bg-apothecary-fern/20 p-4 shadow-garden-glow">
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                <span className="font-mono text-xs uppercase tracking-[0.2em] text-apothecary-sage">Scale Multiplication -&gt;</span>
-                <span className="text-2xl font-semibold text-apothecary-mint sm:text-3xl">Top 0.04% Curator</span>
-              </div>
+          <div className="relative z-10 mt-10 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+            <div className="rounded-[1.75rem] border border-apothecary-neon/25 bg-apothecary-fern/20 p-5 shadow-garden-glow">
+              <p className="break-words text-4xl font-semibold tracking-normal text-apothecary-mint sm:text-6xl">{shareCard.handle}</p>
+              <p className="mt-5 max-w-xl text-2xl leading-tight text-receipt-bone sm:text-3xl">{shareCard.delta}</p>
+              <p className="mt-4 text-lg text-zinc-300">the timeline was still asleep.</p>
+            </div>
+            <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5">
+              <p className="text-sm leading-6 text-zinc-300">
+                Liked. Replied. Proven from an authenticated X session.
+              </p>
+              <div className="mt-8 h-px bg-white/10" />
+              <p className="mt-5 font-mono text-xs text-zinc-500">Private signal. Public proof path.</p>
             </div>
           </div>
 
+          <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-2">
+            {proofDetails.map(([label, value]) => (
+              <div key={label} className="rounded-2xl border border-white/10 bg-velvet-900/50 p-4">
+                <p className="font-mono text-xs text-zinc-500">{label}</p>
+                <p className="mt-2 min-w-0 break-words font-mono text-sm text-zinc-200">{value}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="relative z-10 mt-10 flex items-center justify-between border-t border-dashed border-white/15 pt-5 font-mono text-xs uppercase tracking-[0.18em] text-zinc-500">
-            <span>zkTLS attested</span>
-            <span>{hasPublishedReceipt ? "Stellar published" : hasOnchainVerifier ? "Stellar verified" : "Stellar ready"}</span>
+            <span>Early proof</span>
+            <span>{hasPublishedReceipt ? "receipt live" : hasOnchainVerifier ? "proof verified" : "ready for Stellar"}</span>
           </div>
         </motion.div>
       </div>
@@ -665,24 +1026,24 @@ function VerifiedView({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.22em] text-zinc-500">Receipt path</p>
-            <h3 className="mt-3 text-2xl font-semibold tracking-normal text-receipt-bone">Finish the proof.</h3>
+            <h3 className="mt-3 text-2xl font-semibold tracking-normal text-receipt-bone">Keep the moment.</h3>
           </div>
           <StatusBadge status={wallet.address ? "wallet ready" : "wallet needed"} tone={wallet.address ? "success" : "warning"} />
         </div>
 
         <div className="mt-6 grid gap-3">
-          <FlowStep index="01" title="Reclaim proof" detail="The X callback is stored and normalized into an Early artifact." status="complete" />
+          <FlowStep index="01" title="Reclaim proof" detail="X confirmed the moment from your authenticated session." status="complete" />
           <FlowStep
             index="02"
             title="On-chain verifier"
-            detail={hasOnchainVerifier ? "The Reclaim witness signature has been verified on Stellar." : "Use your wallet to verify the Reclaim proof on Stellar testnet."}
+            detail={hasOnchainVerifier ? "Stellar checked the Reclaim witness signature." : "Use your wallet to let Stellar check the proof."}
             status={verifierStatus === "failed" ? "failed" : hasOnchainVerifier ? "complete" : "queued"}
             isActive={Boolean(wallet.address && !hasOnchainVerifier)}
           />
           <FlowStep
             index="03"
             title="Public receipt"
-            detail={hasPublishedReceipt ? "A privacy-safe receipt now points to this proof commitment." : "Publish the wallet-owned commitment after on-chain verification."}
+            detail={hasPublishedReceipt ? "A privacy-safe receipt now points to this proof." : "Publish the wallet-owned commitment after verification."}
             status={receiptStatus === "failed" ? "failed" : hasPublishedReceipt ? "complete" : "queued"}
             isActive={hasOnchainVerifier && !hasPublishedReceipt}
           />
@@ -720,7 +1081,7 @@ function VerifiedView({
               onClick={onReset}
               className="focus-garden min-h-11 rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition hover:border-apothecary-sage/40 hover:text-apothecary-mint"
             >
-              Process another proof
+              Prove another moment
             </button>
           </div>
         </div>
@@ -766,6 +1127,33 @@ export default function Home() {
   const [wallet, setWallet] = useState<WalletState>(initialWalletState);
   const [publishState, setPublishState] = useState<StellarPublishState>(initialPublishState);
   const [verifierState, setVerifierState] = useState<StellarVerifierState>(initialVerifierState);
+
+  useEffect(() => {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (prefersReducedMotion) {
+      return;
+    }
+
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true
+    });
+    let animationFrame = 0;
+
+    function raf(time: number) {
+      lenis.raf(time);
+      animationFrame = window.requestAnimationFrame(raf);
+    }
+
+    animationFrame = window.requestAnimationFrame(raf);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      lenis.destroy();
+    };
+  }, []);
 
   const activeStage = useMemo(() => {
     if (proofState === "zktls" || proofState === "fhe") {
@@ -831,7 +1219,7 @@ export default function Home() {
           setPublishState((current) => (current.status === "idle" && session.stellarReceipt?.status ? { ...current, status: session.stellarReceipt.status } : current));
           setVerifierState((current) => (current.status === "idle" && session.stellarVerifier?.status ? { ...current, status: session.stellarVerifier.status } : current));
           setProgress(85);
-          setLiveStatus("Reclaim proof received. Preparing private receipt...");
+          setLiveStatus("Reclaim proved you were there. Building the card...");
           setProofState("fhe");
           return;
         }
@@ -848,8 +1236,8 @@ export default function Home() {
         }
 
         if (pollCount >= 100) {
-          setProofError("Still waiting for the Reclaim callback. You can retry after completing the portal flow.");
-          setLiveStatus("Proof session is still pending.");
+          setProofError("Still waiting for the Reclaim callback. Keep this tab open or start again.");
+          setLiveStatus("Early is still waiting for the receipt.");
         }
       } catch (error) {
         if (isCancelled) {
@@ -893,7 +1281,7 @@ export default function Home() {
     setProofError("");
     setReclaimUrl("");
     setMobileReclaimUrl("");
-    setLiveStatus("Preparing Reclaim verification session...");
+    setLiveStatus("Opening the proof path...");
     setProgress(0);
     setProofState("zktls");
 
@@ -916,7 +1304,7 @@ export default function Home() {
       setActiveSessionId(payload.sessionId);
       setReclaimUrl(payload.requestUrl);
       setMobileReclaimUrl(payload.mobileRequestUrl ?? payload.requestUrl);
-      setLiveStatus("Reclaim session is ready. Open the portal here, or send the mobile verifier link to your phone.");
+      setLiveStatus("Copy the phone link, complete Reclaim, and this page will catch the callback.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Reclaim verification could not be started.";
       setProofError(message);
@@ -965,7 +1353,7 @@ export default function Home() {
     if (!verifiedSession?.sessionId || !wallet.address) {
       setVerifierState({
         status: "failed",
-        message: "Connect a Stellar wallet after generating a successful proof.",
+        message: "Connect a Stellar wallet after Early builds your proof card.",
         txHash: "",
         explorerUrl: ""
       });
@@ -975,7 +1363,7 @@ export default function Home() {
     try {
       setVerifierState({
         status: "preparing",
-        message: "Preparing Reclaim proof verifier transaction...",
+        message: "Preparing the Stellar check...",
         txHash: "",
         explorerUrl: ""
       });
@@ -1006,7 +1394,7 @@ export default function Home() {
 
       setVerifierState({
         status: "awaiting-signature",
-        message: "Confirm the Reclaim verifier transaction in your wallet...",
+        message: "Confirm the Stellar check in your wallet...",
         txHash: "",
         explorerUrl: ""
       });
@@ -1019,7 +1407,7 @@ export default function Home() {
 
       setVerifierState({
         status: "submitting",
-        message: "Submitting Reclaim proof verifier transaction...",
+        message: "Sending the proof check to Stellar...",
         txHash: "",
         explorerUrl: ""
       });
@@ -1062,7 +1450,7 @@ export default function Home() {
       );
       setVerifierState({
         status: "verified",
-        message: "Reclaim proof verified on Stellar.",
+        message: "Stellar agrees. The proof is real.",
         txHash: submission.txHash,
         explorerUrl: submission.explorerUrl ?? ""
       });
@@ -1081,7 +1469,7 @@ export default function Home() {
     if (!verifiedSession?.sessionId || !wallet.address) {
       setPublishState({
         status: "failed",
-        message: "Connect a Stellar wallet after generating a successful proof.",
+        message: "Connect a Stellar wallet after Early builds your proof card.",
         txHash: "",
         explorerUrl: ""
       });
@@ -1093,7 +1481,7 @@ export default function Home() {
     if (verifierStatus !== "verified") {
       setPublishState({
         status: "failed",
-        message: "Verify the Reclaim proof on Stellar before publishing the Early receipt.",
+        message: "Verify the Reclaim proof on Stellar before keeping the receipt.",
         txHash: "",
         explorerUrl: ""
       });
@@ -1103,7 +1491,7 @@ export default function Home() {
     try {
       setPublishState({
         status: "preparing",
-        message: "Preparing privacy-safe Stellar receipt...",
+        message: "Preparing the public receipt without the private details...",
         txHash: "",
         explorerUrl: ""
       });
@@ -1145,7 +1533,7 @@ export default function Home() {
 
       setPublishState({
         status: "awaiting-signature",
-        message: "Confirm the Stellar transaction in your wallet...",
+        message: "Confirm the receipt in your wallet...",
         txHash: "",
         explorerUrl: ""
       });
@@ -1158,7 +1546,7 @@ export default function Home() {
 
       setPublishState({
         status: "submitting",
-        message: "Submitting Stellar receipt to testnet...",
+        message: "Sending your receipt to Stellar testnet...",
         txHash: "",
         explorerUrl: ""
       });
@@ -1202,7 +1590,7 @@ export default function Home() {
       );
       setPublishState({
         status: "published",
-        message: "Published on Stellar testnet.",
+        message: "Published on Stellar testnet. The moment has a receipt.",
         txHash: submission.txHash,
         explorerUrl: submission.explorerUrl ?? ""
       });
