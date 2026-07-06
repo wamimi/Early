@@ -3,6 +3,9 @@
   "version": "1.0.0-beta",
   "private": true,
   "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +17,9 @@
     "@ethersproject/keccak256": "^5.8.0",
     "@reclaimprotocol/js-sdk": "^5.6.0",
     "@stellar/stellar-sdk": "^16.0.1",
+    "@zama-fhe/sdk": "^1.0.0",
     "clsx": "^2.1.1",
+    "ethers": "^6.15.0",
     "framer-motion": "^12.42.0",
     "geist": "^1.7.2",
     "gsap": "^3.15.0",
