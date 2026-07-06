@@ -40,6 +40,23 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ se
         createdAt: session.stellar_verifier_created_at,
         errorMessage: session.stellar_verifier_error_message
       },
+      zamaReceipt: {
+        walletAddress: session.zama_wallet_address,
+        network: session.zama_network,
+        contractAddress: session.zama_contract_address,
+        txHash: session.zama_tx_hash,
+        status: session.zama_status,
+        encryptedTimestampHandle: session.zama_encrypted_timestamp_handle,
+        encryptedEarlyDeltaHandle: session.zama_encrypted_early_delta_handle,
+        tierHandle: session.zama_tier_handle,
+        publicTier: session.zama_public_tier,
+        publicTierLabel: session.zama_public_tier_label,
+        campaignWindowMinutes: session.zama_campaign_window_minutes,
+        eligibilityHandle: session.zama_eligibility_handle,
+        publicEligible: session.zama_public_eligible,
+        createdAt: session.zama_created_at,
+        errorMessage: session.zama_error_message
+      },
       createdAt: session.created_at,
       updatedAt: session.updated_at,
       completedAt: session.completed_at
