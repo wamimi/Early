@@ -47,6 +47,23 @@ type ProofSessionResponse = {
     createdAt: string | null;
     errorMessage: string | null;
   };
+  zamaReceipt: {
+    walletAddress: string | null;
+    network: string | null;
+    contractAddress: string | null;
+    txHash: string | null;
+    status: "prepared" | "pending" | "sealed" | "failed" | null;
+    encryptedTimestampHandle: string | null;
+    encryptedEarlyDeltaHandle: string | null;
+    tierHandle: string | null;
+    publicTier: number | null;
+    publicTierLabel: string | null;
+    campaignWindowMinutes: number | null;
+    eligibilityHandle: string | null;
+    publicEligible: boolean | null;
+    createdAt: string | null;
+    errorMessage: string | null;
+  };
   completedAt: string | null;
 };
 
@@ -71,10 +88,45 @@ type StellarVerifierState = {
   explorerUrl: string;
 };
 
+type EvmWalletState = {
+  address: string;
+  chainId: number | null;
+  isConnecting: boolean;
+  error: string;
+};
+
+type ZamaSealState = {
+  status: "idle" | "preparing" | "encrypting" | "awaiting-signature" | "submitting" | "prepared" | "pending" | "sealed" | "failed";
+  message: string;
+  txHash: string;
+  explorerUrl: string;
+};
+
 type StellarWalletKitApi = {
   authModal: () => Promise<{ address: string }>;
   getAddress: () => Promise<{ address: string }>;
   signTransaction: (xdr: string, opts?: { networkPassphrase?: string; address?: string }) => Promise<{ signedTxXdr: string }>;
+};
+
+type ZamaEncryptedPayload = {
+  handles: Array<Uint8Array | string>;
+  inputProof: Uint8Array | string;
+};
+
+type ZamaSdkModule = {
+  RelayerWeb: new (config: {
+    transports: Record<number, Record<string, unknown>>;
+    getChainId: () => Promise<number>;
+  }) => {
+    encrypt: (params: {
+      values: [{ value: bigint; type: "euint32" }];
+      contractAddress: string;
+      userAddress: string;
+    }) => Promise<ZamaEncryptedPayload>;
+    publicDecrypt: (handles: string[]) => Promise<{ clearValues?: Record<string, boolean | bigint | number | string> } | Record<string, unknown>>;
+    terminate?: () => void;
+  };
+  SepoliaConfig: Record<string, unknown>;
 };
 
 type ProofStage = {
@@ -214,6 +266,57 @@ const initialVerifierState: StellarVerifierState = {
   explorerUrl: ""
 };
 
+const initialEvmWalletState: EvmWalletState = {
+  address: "",
+  chainId: null,
+  isConnecting: false,
+  error: ""
+};
+
+const initialZamaSealState: ZamaSealState = {
+  status: "idle",
+  message: "",
+  txHash: "",
+  explorerUrl: ""
+};
+
+const zamaReceiptAbi = [
+  {
+    type: "function",
+    name: "sealTasteProof",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "publicCommitment", type: "bytes32" },
+      { name: "proofHash", type: "bytes32" },
+      { name: "encryptedEarlyDeltaMinutes", type: "bytes32" },
+      { name: "inputProof", type: "bytes" },
+      { name: "campaignWindowMinutes", type: "uint32" }
+    ],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "getEncryptedEarlyDeltaMinutes",
+    stateMutability: "view",
+    inputs: [{ name: "publicCommitment", type: "bytes32" }],
+    outputs: [{ name: "", type: "bytes32" }]
+  },
+  {
+    type: "function",
+    name: "getTasteTier",
+    stateMutability: "view",
+    inputs: [{ name: "publicCommitment", type: "bytes32" }],
+    outputs: [{ name: "", type: "bytes32" }]
+  },
+  {
+    type: "function",
+    name: "getEligibility",
+    stateMutability: "view",
+    inputs: [{ name: "publicCommitment", type: "bytes32" }],
+    outputs: [{ name: "", type: "bytes32" }]
+  }
+] as const;
+
 let walletKitPromise: Promise<StellarWalletKitApi> | null = null;
 
 function truncateMiddle(value: string, start = 6, end = 6) {
@@ -315,6 +418,140 @@ function getProofDetails(session: ProofSessionResponse | null) {
     ["Reply proved", timestamp],
     ["Public commitment", commitment]
   ] as const;
+}
+
+function getZamaChainId() {
+  const chainId = Number.parseInt(process.env.NEXT_PUBLIC_ZAMA_CHAIN_ID ?? "11155111", 10);
+  return Number.isSafeInteger(chainId) && chainId > 0 ? chainId : 11155111;
+}
+
+function getZamaExplorerUrl(txHash: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_ZAMA_EXPLORER_URL ?? "https://explorer.testnet.zama.org";
+  return `${baseUrl.replace(/\/$/, "")}/tx/${txHash}`;
+}
+
+function toHexChainId(chainId: number) {
+  return `0x${chainId.toString(16)}`;
+}
+
+function toBytes32(hex: string) {
+  return `0x${hex.replace(/^0x/, "")}`;
+}
+
+function bytesToHex(value: Uint8Array | string) {
+  if (typeof value === "string") {
+    return value.startsWith("0x") ? value : `0x${value}`;
+  }
+
+  return `0x${Array.from(value, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function getTasteTierLabel(tier: number | null | undefined) {
+  switch (tier) {
+    case 4:
+      return "First Hour";
+    case 3:
+      return "Day One";
+    case 2:
+      return "Week One";
+    case 1:
+      return "Still Early";
+    case 0:
+      return "Late";
+    default:
+      return null;
+  }
+}
+
+function parseDecryptedNumber(value: unknown) {
+  if (typeof value === "bigint") {
+    return Number(value);
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string" && /^\d+$/.test(value)) {
+    return Number(value);
+  }
+
+  return null;
+}
+
+function parseDecryptedBoolean(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "bigint") {
+    return value !== BigInt(0);
+  }
+
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+
+  if (typeof value === "string") {
+    if (value === "true") {
+      return true;
+    }
+
+    if (value === "false") {
+      return false;
+    }
+  }
+
+  return null;
+}
+
+function getDecryptedValue(result: unknown, handle: string, fallbackIndex = 0) {
+  if (!result || typeof result !== "object") {
+    return null;
+  }
+
+  const clearValues = "clearValues" in result && result.clearValues && typeof result.clearValues === "object" ? result.clearValues : result;
+  const values = clearValues as Record<string, unknown>;
+
+  return values[handle] ?? values[handle.toLowerCase()] ?? values[handle.toUpperCase()] ?? Object.values(values)[fallbackIndex] ?? null;
+}
+
+function isEvmWalletAvailable() {
+  return typeof window !== "undefined" && Boolean(window.ethereum);
+}
+
+async function switchToZamaChain() {
+  if (!window.ethereum) {
+    throw new Error("Install MetaMask or another EVM wallet to compute the private taste tier with Zama.");
+  }
+
+  const chainId = getZamaChainId();
+
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: toHexChainId(chainId) }]
+    });
+  } catch (error) {
+    const maybeError = error as { code?: number };
+
+    if (maybeError.code !== 4902) {
+      throw error;
+    }
+
+    await window.ethereum.request({
+      method: "wallet_addEthereumChain",
+      params: [
+        {
+          chainId: toHexChainId(chainId),
+          chainName: "Sepolia",
+          nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
+          blockExplorerUrls: [process.env.NEXT_PUBLIC_ZAMA_EXPLORER_URL ?? "https://explorer.testnet.zama.org"]
+        }
+      ]
+    });
+  }
 }
 
 function getShareCardCopy(session: ProofSessionResponse | null) {
@@ -897,20 +1134,28 @@ function VerifiedView({
   onReset,
   session,
   wallet,
+  evmWallet,
   publishState,
   verifierState,
+  zamaState,
   onConnectWallet,
+  onConnectEvmWallet,
   onVerifyReclaimProof,
-  onPublishReceipt
+  onPublishReceipt,
+  onSealPrivateSignal
 }: {
   onReset: () => void;
   session: ProofSessionResponse | null;
   wallet: WalletState;
+  evmWallet: EvmWalletState;
   publishState: StellarPublishState;
   verifierState: StellarVerifierState;
+  zamaState: ZamaSealState;
   onConnectWallet: () => void;
+  onConnectEvmWallet: () => void;
   onVerifyReclaimProof: () => void;
   onPublishReceipt: () => void;
+  onSealPrivateSignal: () => void;
 }) {
   const shareCard = getShareCardCopy(session);
   const proofDetails = getProofDetails(session);
@@ -920,12 +1165,25 @@ function VerifiedView({
   const verifierStatus = verifierState.status !== "idle" ? verifierState.status : session?.stellarVerifier?.status;
   const verifierTxHash = verifierState.txHash || session?.stellarVerifier?.txHash || "";
   const verifierExplorerUrl = verifierState.explorerUrl || (verifierTxHash ? `https://testnet.stellarchain.io/transactions/${verifierTxHash}` : "");
+  const zamaStatus = zamaState.status !== "idle" ? zamaState.status : session?.zamaReceipt?.status;
+  const zamaTxHash = zamaState.txHash || session?.zamaReceipt?.txHash || "";
+  const zamaExplorerUrl = zamaState.explorerUrl || (zamaTxHash ? getZamaExplorerUrl(zamaTxHash) : "");
+  const tasteTierLabel = session?.zamaReceipt?.publicTierLabel ?? getTasteTierLabel(session?.zamaReceipt?.publicTier) ?? null;
   const isVerifierBusy = isBusyStatus(verifierState.status);
   const isReceiptBusy = isBusyStatus(publishState.status);
+  const isZamaBusy = isBusyStatus(zamaState.status) || zamaState.status === "encrypting";
   const hasOnchainVerifier = verifierStatus === "verified";
   const hasPublishedReceipt = receiptStatus === "published";
+  const hasSealedPrivateSignal = zamaStatus === "sealed";
   const canVerify = Boolean(session?.proofArtifact?.publicCommitment && wallet.address && !isVerifierBusy);
   const canPublish = Boolean(session?.proofArtifact?.publicCommitment && wallet.address && hasOnchainVerifier && !isReceiptBusy);
+  const canSealWithZama = Boolean(
+    session?.proofArtifact?.replyTimestampUnix &&
+      session.proofArtifact.parentContentId &&
+      evmWallet.address &&
+      !isZamaBusy &&
+      !hasSealedPrivateSignal
+  );
   const primaryAction =
     !wallet.address
       ? {
@@ -956,6 +1214,27 @@ function VerifiedView({
             };
   const verifierTone = verifierStatus === "verified" ? "success" : verifierStatus === "failed" ? "danger" : wallet.address ? "warning" : "default";
   const actionMessage = publishState.message || verifierState.message || primaryAction.message;
+  const zamaTone = hasSealedPrivateSignal ? "success" : zamaStatus === "failed" ? "danger" : evmWallet.address ? "warning" : "default";
+  const zamaAction = !evmWallet.address
+    ? {
+        label: evmWallet.isConnecting ? "Connecting..." : "Connect EVM Wallet",
+        onClick: onConnectEvmWallet,
+        disabled: evmWallet.isConnecting,
+        message: "Zama uses an EVM wallet on Sepolia. Your exact timing is encrypted before the contract ranks it."
+      }
+    : hasSealedPrivateSignal
+      ? {
+          label: tasteTierLabel ? `${tasteTierLabel} computed` : "Private Taste Computed",
+          onClick: onSealPrivateSignal,
+          disabled: true,
+          message: "Zama computed the taste tier from encrypted timing data."
+        }
+      : {
+          label: isZamaBusy ? "Computing..." : "Compute private taste tier",
+          onClick: onSealPrivateSignal,
+          disabled: !canSealWithZama,
+          message: "Encrypt how early you were and reveal only the tier, not the exact timing."
+        };
 
   return (
     <motion.section
@@ -1047,6 +1326,17 @@ function VerifiedView({
             status={receiptStatus === "failed" ? "failed" : hasPublishedReceipt ? "complete" : "queued"}
             isActive={hasOnchainVerifier && !hasPublishedReceipt}
           />
+          <FlowStep
+            index="04"
+            title="Private taste layer"
+            detail={
+              hasSealedPrivateSignal
+                ? `Zama computed ${tasteTierLabel ?? "a private tier"} without publishing the exact timing.`
+                : "Encrypt how early you were and reveal only the final taste tier."
+            }
+            status={zamaStatus === "failed" ? "failed" : hasSealedPrivateSignal ? "complete" : "queued"}
+            isActive={Boolean(evmWallet.address && !hasSealedPrivateSignal)}
+          />
         </div>
 
         <div className="mt-5 rounded-[1.35rem] border border-white/10 bg-velvet-900/65 p-4">
@@ -1086,7 +1376,50 @@ function VerifiedView({
           </div>
         </div>
 
+        <div className="mt-5 rounded-[1.35rem] border border-apothecary-sage/15 bg-apothecary-moss/15 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-mono text-xs uppercase tracking-[0.18em] text-zinc-500">Zama FHE</p>
+            <StatusBadge status={zamaStatus ?? "optional"} tone={zamaTone} />
+          </div>
+          {tasteTierLabel && (
+            <div className="mt-4 rounded-2xl border border-apothecary-neon/25 bg-apothecary-fern/20 p-4">
+              <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-apothecary-sage">Private taste tier</p>
+              <p className="mt-2 text-2xl font-semibold text-apothecary-mint">{tasteTierLabel}</p>
+              <p className="mt-2 text-xs leading-5 text-zinc-400">Computed from encrypted timing data. Exact timing stays off-chain.</p>
+            </div>
+          )}
+          <p className="mt-3 text-sm leading-6 text-zinc-300">{zamaState.message || zamaAction.message}</p>
+          {evmWallet.address && (
+            <p className="mt-3 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-zinc-500">
+              EVM wallet <span className="text-zinc-300">{truncateMiddle(evmWallet.address)}</span>
+            </p>
+          )}
+          {(evmWallet.error || session?.zamaReceipt?.errorMessage || (zamaState.status === "failed" && zamaState.message)) && (
+            <p className="mt-3 rounded-2xl border border-apothecary-lotus/25 bg-apothecary-lotus/10 p-3 font-mono text-xs uppercase tracking-[0.12em] text-apothecary-lotus">
+              {evmWallet.error || zamaState.message || session?.zamaReceipt?.errorMessage}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={zamaAction.onClick}
+            disabled={zamaAction.disabled}
+            className="focus-garden mt-5 min-h-12 w-full rounded-full border border-apothecary-neon/25 bg-apothecary-moss/35 px-5 py-3 text-sm font-semibold text-apothecary-mint transition hover:border-apothecary-neon/50 hover:bg-apothecary-fern/30 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-zinc-500"
+          >
+            {zamaAction.label}
+          </button>
+        </div>
+
         <div className="mt-5 grid gap-3">
+          {zamaExplorerUrl && (
+            <a
+              href={zamaExplorerUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-2xl border border-apothecary-lotus/20 bg-apothecary-lotus/10 p-3 font-mono text-xs uppercase tracking-[0.12em] text-apothecary-lotus transition hover:border-apothecary-lotus/40 hover:text-white"
+            >
+              Zama tx {truncateMiddle(zamaTxHash)}
+            </a>
+          )}
           {verifierExplorerUrl && (
             <a
               href={verifierExplorerUrl}
@@ -1125,8 +1458,10 @@ export default function Home() {
   const [activeSessionId, setActiveSessionId] = useState(initialSessionId);
   const [verifiedSession, setVerifiedSession] = useState<ProofSessionResponse | null>(null);
   const [wallet, setWallet] = useState<WalletState>(initialWalletState);
+  const [evmWallet, setEvmWallet] = useState<EvmWalletState>(initialEvmWalletState);
   const [publishState, setPublishState] = useState<StellarPublishState>(initialPublishState);
   const [verifierState, setVerifierState] = useState<StellarVerifierState>(initialVerifierState);
+  const [zamaState, setZamaState] = useState<ZamaSealState>(initialZamaSealState);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1218,6 +1553,7 @@ export default function Home() {
           setVerifiedSession(session);
           setPublishState((current) => (current.status === "idle" && session.stellarReceipt?.status ? { ...current, status: session.stellarReceipt.status } : current));
           setVerifierState((current) => (current.status === "idle" && session.stellarVerifier?.status ? { ...current, status: session.stellarVerifier.status } : current));
+          setZamaState((current) => (current.status === "idle" && session.zamaReceipt?.status ? { ...current, status: session.zamaReceipt.status } : current));
           setProgress(85);
           setLiveStatus("Reclaim proved you were there. Building the card...");
           setProofState("fhe");
@@ -1327,6 +1663,7 @@ export default function Home() {
     setVerifiedSession(null);
     setPublishState(initialPublishState);
     setVerifierState(initialVerifierState);
+    setZamaState(initialZamaSealState);
     window.localStorage.removeItem(sessionStorageKey);
     setProofState("idle");
   }
@@ -1346,6 +1683,35 @@ export default function Home() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to connect Stellar wallet.";
       setWallet((current) => ({ ...current, isConnecting: false, error: message }));
+    }
+  }
+
+  async function handleConnectEvmWallet() {
+    setEvmWallet((current) => ({ ...current, isConnecting: true, error: "" }));
+
+    try {
+      if (!isEvmWalletAvailable() || !window.ethereum) {
+        throw new Error("Install MetaMask or another EVM wallet to use Zama.");
+      }
+
+      const accounts = await window.ethereum.request<string[]>({ method: "eth_requestAccounts" });
+      const address = accounts[0];
+
+      if (!address) {
+        throw new Error("No EVM wallet address was returned.");
+      }
+
+      await switchToZamaChain();
+
+      setEvmWallet({
+        address,
+        chainId: getZamaChainId(),
+        isConnecting: false,
+        error: ""
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to connect EVM wallet.";
+      setEvmWallet((current) => ({ ...current, isConnecting: false, error: message }));
     }
   }
 
@@ -1605,6 +1971,215 @@ export default function Home() {
     }
   }
 
+  async function handleSealPrivateSignal() {
+    if (!verifiedSession?.sessionId || !evmWallet.address) {
+      setZamaState({
+        status: "failed",
+        message: "Connect an EVM wallet after Early builds your proof card.",
+        txHash: "",
+        explorerUrl: ""
+      });
+      return;
+    }
+
+    try {
+      if (!window.ethereum) {
+        throw new Error("Install MetaMask or another EVM wallet to use Zama.");
+      }
+
+      setZamaState({
+        status: "preparing",
+        message: "Preparing the private taste computation...",
+        txHash: "",
+        explorerUrl: ""
+      });
+
+      await switchToZamaChain();
+
+      const prepareResponse = await fetch("/api/zama/receipt/prepare", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sessionId: verifiedSession.sessionId,
+          walletAddress: evmWallet.address
+        })
+      });
+      const preparation = (await prepareResponse.json()) as {
+        error?: string;
+        receipt?: {
+          contractAddress: string;
+          chainId: number;
+          relayerUrl: string;
+          campaignWindowMinutes: number;
+          earlyDeltaMinutes: number;
+          publicCommitmentHex: string;
+          proofHashHex: string;
+        };
+      };
+
+      if (!prepareResponse.ok || !preparation.receipt) {
+        throw new Error(preparation.error ?? "Unable to prepare Zama private taste proof.");
+      }
+
+      const zamaReceipt = preparation.receipt;
+
+      setZamaState({
+        status: "encrypting",
+        message: "Encrypting your early delta locally...",
+        txHash: "",
+        explorerUrl: ""
+      });
+
+      const [zamaModule, { BrowserProvider, Contract }] = await Promise.all([
+        import("@zama-fhe/sdk") as Promise<ZamaSdkModule>,
+        import("ethers")
+      ]);
+      const fhevm = new zamaModule.RelayerWeb({
+        transports: {
+          [zamaReceipt.chainId]: {
+            ...zamaModule.SepoliaConfig,
+            chainId: zamaReceipt.chainId,
+            relayerUrl: zamaReceipt.relayerUrl
+          }
+        },
+        getChainId: async () => zamaReceipt.chainId
+      });
+      const encrypted = await fhevm.encrypt({
+        values: [{ value: BigInt(zamaReceipt.earlyDeltaMinutes), type: "euint32" }],
+        contractAddress: zamaReceipt.contractAddress,
+        userAddress: evmWallet.address
+      });
+      const encryptedEarlyDeltaInput = encrypted.handles[0] ? bytesToHex(encrypted.handles[0]) : "";
+      const inputProof = encrypted.inputProof ? bytesToHex(encrypted.inputProof) : "";
+
+      if (!encryptedEarlyDeltaInput || !inputProof) {
+        fhevm.terminate?.();
+        throw new Error("Zama did not return an encrypted early-delta handle.");
+      }
+
+      setZamaState({
+        status: "awaiting-signature",
+        message: "Confirm the Zama transaction in your EVM wallet...",
+        txHash: "",
+        explorerUrl: ""
+      });
+
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new Contract(zamaReceipt.contractAddress, zamaReceiptAbi, signer);
+      const transaction = await contract.sealTasteProof(
+        toBytes32(zamaReceipt.publicCommitmentHex),
+        toBytes32(zamaReceipt.proofHashHex),
+        encryptedEarlyDeltaInput,
+        inputProof,
+        BigInt(zamaReceipt.campaignWindowMinutes)
+      );
+
+      setZamaState({
+        status: "submitting",
+        message: "Waiting for Sepolia to seal the private signal...",
+        txHash: transaction.hash,
+        explorerUrl: getZamaExplorerUrl(transaction.hash)
+      });
+
+      await transaction.wait();
+
+      let encryptedEarlyDeltaHandle = encryptedEarlyDeltaInput;
+      let tierHandle = "";
+      let eligibilityHandle = "";
+      let publicTier: number | null = null;
+      let publicEligible: boolean | null = null;
+
+      try {
+        encryptedEarlyDeltaHandle = String(await contract.getEncryptedEarlyDeltaMinutes(toBytes32(zamaReceipt.publicCommitmentHex)));
+        tierHandle = String(await contract.getTasteTier(toBytes32(zamaReceipt.publicCommitmentHex)));
+        eligibilityHandle = String(await contract.getEligibility(toBytes32(zamaReceipt.publicCommitmentHex)));
+        const publicResult = await fhevm.publicDecrypt([tierHandle, eligibilityHandle]);
+        publicTier = parseDecryptedNumber(getDecryptedValue(publicResult, tierHandle, 0));
+        publicEligible = parseDecryptedBoolean(getDecryptedValue(publicResult, eligibilityHandle, 1));
+      } catch {
+        tierHandle = "";
+        eligibilityHandle = "";
+      } finally {
+        fhevm.terminate?.();
+      }
+
+      const publicTierLabel = getTasteTierLabel(publicTier);
+
+      const submitResponse = await fetch("/api/zama/receipt/submit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sessionId: verifiedSession.sessionId,
+          walletAddress: evmWallet.address,
+          contractAddress: zamaReceipt.contractAddress,
+          txHash: transaction.hash,
+          encryptedEarlyDeltaHandle,
+          tierHandle,
+          eligibilityHandle,
+          publicTier,
+          publicTierLabel,
+          publicEligible,
+          campaignWindowMinutes: zamaReceipt.campaignWindowMinutes
+        })
+      });
+      const submission = (await submitResponse.json()) as {
+        error?: string;
+        txHash?: string;
+        explorerUrl?: string;
+      };
+
+      if (!submitResponse.ok || !submission.txHash) {
+        throw new Error(submission.error ?? "Unable to record Zama private taste proof.");
+      }
+
+      setVerifiedSession((current) =>
+        current
+          ? {
+              ...current,
+              zamaReceipt: {
+                walletAddress: evmWallet.address,
+                network: "sepolia",
+                contractAddress: zamaReceipt.contractAddress,
+                txHash: submission.txHash ?? null,
+                status: "sealed",
+                encryptedTimestampHandle: null,
+                encryptedEarlyDeltaHandle,
+                tierHandle,
+                eligibilityHandle,
+                publicEligible,
+                publicTier,
+                publicTierLabel,
+                campaignWindowMinutes: zamaReceipt.campaignWindowMinutes,
+                createdAt: new Date().toISOString(),
+                errorMessage: null
+              }
+            }
+          : current
+      );
+      setZamaState({
+        status: "sealed",
+        message: publicTierLabel
+          ? `Zama computed your private taste tier: ${publicTierLabel}.`
+          : "Zama computed the private taste tier from encrypted timing data.",
+        txHash: submission.txHash,
+        explorerUrl: submission.explorerUrl ?? getZamaExplorerUrl(submission.txHash)
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to seal the private signal with Zama.";
+      setZamaState({
+        status: "failed",
+        message,
+        txHash: "",
+        explorerUrl: ""
+      });
+    }
+  }
+
   return (
     <main className="grain-field relative min-h-svh w-full max-w-full overflow-x-hidden bg-velvet-950">
       <AmbientField />
@@ -1627,11 +2202,15 @@ export default function Home() {
             onReset={handleReset}
             session={verifiedSession}
             wallet={wallet}
+            evmWallet={evmWallet}
             publishState={publishState}
             verifierState={verifierState}
+            zamaState={zamaState}
             onConnectWallet={handleConnectWallet}
+            onConnectEvmWallet={handleConnectEvmWallet}
             onVerifyReclaimProof={handleVerifyReclaimProof}
             onPublishReceipt={handlePublishReceipt}
+            onSealPrivateSignal={handleSealPrivateSignal}
           />
         )}
       </AnimatePresence>
