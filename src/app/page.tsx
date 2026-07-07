@@ -100,6 +100,7 @@ type ZamaSealState = {
   message: string;
   txHash: string;
   explorerUrl: string;
+  debug?: string;
 };
 
 type StellarWalletKitApi = {
@@ -301,7 +302,8 @@ const initialZamaSealState: ZamaSealState = {
   status: "idle",
   message: "",
   txHash: "",
-  explorerUrl: ""
+  explorerUrl: "",
+  debug: ""
 };
 
 const zamaReceiptAbi = [
@@ -542,6 +544,18 @@ function getDecryptedValue(result: unknown, handle: string, fallbackIndex = 0) {
   const values = clearValues as Record<string, unknown>;
 
   return values[handle] ?? values[handle.toLowerCase()] ?? values[handle.toUpperCase()] ?? Object.values(values)[fallbackIndex] ?? null;
+}
+
+function getErrorDebug(error: unknown) {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}${error.stack ? `\n${error.stack}` : ""}`;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
 }
 
 function isEvmWalletAvailable() {
@@ -1582,9 +1596,14 @@ function VerifiedView({
                   </p>
                 )}
                 {privateError && (
-                  <p className="mt-3 rounded-2xl border border-apothecary-lotus/25 bg-apothecary-lotus/10 p-3 font-mono text-xs leading-5 text-apothecary-lotus">
-                    {privateError}
-                  </p>
+                  <div className="mt-3 rounded-2xl border border-apothecary-lotus/25 bg-apothecary-lotus/10 p-3 font-mono text-xs leading-5 text-apothecary-lotus">
+                    <p>{privateError}</p>
+                    {zamaState.debug && (
+                      <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border border-apothecary-lotus/20 bg-velvet-950/60 p-3 text-[0.68rem] leading-5 text-zinc-300">
+                        {zamaState.debug}
+                      </pre>
+                    )}
+                  </div>
                 )}
                 <button
                   type="button"
@@ -2242,11 +2261,53 @@ export default function Home() {
         },
         getChainId: async () => zamaReceipt.chainId
       });
-      const encrypted = await fhevm.encrypt({
-        values: [{ value: BigInt(zamaReceipt.earlyDeltaMinutes), type: "euint32" }],
-        contractAddress: encryptionContractAddress,
-        userAddress: encryptionUserAddress
-      });
+      const encryptionAttempts = [
+        {
+          label: "checksum",
+          contractAddress: encryptionContractAddress,
+          userAddress: encryptionUserAddress
+        },
+        {
+          label: "raw",
+          contractAddress: zamaReceipt.contractAddress,
+          userAddress: signerAddress
+        },
+        {
+          label: "lowercase",
+          contractAddress: encryptionContractAddress.toLowerCase(),
+          userAddress: encryptionUserAddress.toLowerCase()
+        }
+      ];
+      let encrypted: ZamaEncryptedPayload | null = null;
+      const encryptErrors: string[] = [];
+
+      for (const attempt of encryptionAttempts) {
+        try {
+          encrypted = await fhevm.encrypt({
+            values: [{ value: BigInt(zamaReceipt.earlyDeltaMinutes), type: "euint32" }],
+            contractAddress: attempt.contractAddress,
+            userAddress: attempt.userAddress
+          });
+          break;
+        } catch (encryptError) {
+          const debug = getErrorDebug(encryptError);
+          encryptErrors.push(`${attempt.label}: ${debug}`);
+          console.error("[Early/Zama] encrypt failed", {
+            attempt: attempt.label,
+            chainId: zamaReceipt.chainId,
+            relayerUrl: zamaReceipt.relayerUrl,
+            earlyDeltaMinutes: zamaReceipt.earlyDeltaMinutes,
+            contractAddress: attempt.contractAddress,
+            userAddress: attempt.userAddress,
+            error: encryptError
+          });
+        }
+      }
+
+      if (!encrypted) {
+        throw new Error(`Zama encryption failed before transaction signing.\n${encryptErrors.join("\n\n")}`);
+      }
+
       const encryptedEarlyDeltaInput = encrypted.handles[0] ? bytesToHex(encrypted.handles[0]) : "";
       const inputProof = encrypted.inputProof ? bytesToHex(encrypted.inputProof) : "";
 
@@ -2369,7 +2430,8 @@ export default function Home() {
         status: "failed",
         message,
         txHash: "",
-        explorerUrl: ""
+        explorerUrl: "",
+        debug: getErrorDebug(error)
       });
     }
   }
