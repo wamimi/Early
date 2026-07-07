@@ -1702,9 +1702,11 @@ export default function Home() {
       }
 
       await switchToZamaChain();
+      const { getAddress } = await import("ethers");
+      const normalizedAddress = getAddress(address);
 
       setEvmWallet({
-        address,
+        address: normalizedAddress,
         chainId: getZamaChainId(),
         isConnecting: false,
         error: ""
@@ -1995,6 +1997,17 @@ export default function Home() {
       });
 
       await switchToZamaChain();
+      const { BrowserProvider, Contract, getAddress } = await import("ethers");
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const signerAddress = getAddress(await signer.getAddress());
+
+      setEvmWallet({
+        address: signerAddress,
+        chainId: getZamaChainId(),
+        isConnecting: false,
+        error: ""
+      });
 
       const prepareResponse = await fetch("/api/zama/receipt/prepare", {
         method: "POST",
@@ -2003,7 +2016,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           sessionId: verifiedSession.sessionId,
-          walletAddress: evmWallet.address
+          walletAddress: signerAddress
         })
       });
       const preparation = (await prepareResponse.json()) as {
@@ -2032,10 +2045,7 @@ export default function Home() {
         explorerUrl: ""
       });
 
-      const [zamaModule, { BrowserProvider, Contract }] = await Promise.all([
-        import("@zama-fhe/sdk") as Promise<ZamaSdkModule>,
-        import("ethers")
-      ]);
+      const zamaModule = (await import("@zama-fhe/sdk")) as ZamaSdkModule;
       const fhevm = new zamaModule.RelayerWeb({
         transports: {
           [zamaReceipt.chainId]: {
@@ -2049,7 +2059,7 @@ export default function Home() {
       const encrypted = await fhevm.encrypt({
         values: [{ value: BigInt(zamaReceipt.earlyDeltaMinutes), type: "euint32" }],
         contractAddress: zamaReceipt.contractAddress,
-        userAddress: evmWallet.address
+        userAddress: signerAddress
       });
       const encryptedEarlyDeltaInput = encrypted.handles[0] ? bytesToHex(encrypted.handles[0]) : "";
       const inputProof = encrypted.inputProof ? bytesToHex(encrypted.inputProof) : "";
@@ -2066,8 +2076,6 @@ export default function Home() {
         explorerUrl: ""
       });
 
-      const provider = new BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
       const contract = new Contract(zamaReceipt.contractAddress, zamaReceiptAbi, signer);
       const transaction = await contract.sealTasteProof(
         toBytes32(zamaReceipt.publicCommitmentHex),
@@ -2115,7 +2123,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           sessionId: verifiedSession.sessionId,
-          walletAddress: evmWallet.address,
+          walletAddress: signerAddress,
           contractAddress: zamaReceipt.contractAddress,
           txHash: transaction.hash,
           encryptedEarlyDeltaHandle,
@@ -2142,7 +2150,7 @@ export default function Home() {
           ? {
               ...current,
               zamaReceipt: {
-                walletAddress: evmWallet.address,
+                walletAddress: signerAddress,
                 network: "sepolia",
                 contractAddress: zamaReceipt.contractAddress,
                 txHash: submission.txHash ?? null,
