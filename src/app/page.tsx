@@ -136,6 +136,8 @@ type ProofStage = {
   target: number;
 };
 
+type VerifiedChapter = "receipt" | "private";
+
 const ease = [0.16, 1, 0.3, 1] as const;
 
 const stages: Record<"zktls" | "fhe", ProofStage> = {
@@ -158,50 +160,72 @@ const platformStories = [
     name: "X",
     icon: "https://cdn.simpleicons.org/x/F2EAD8",
     status: "live now",
-    title: "The tweet before the timeline caught up.",
+    title: "You had to be there.",
     lines: [
-      "You saw it when it had 12 likes.",
-      "You felt it before anyone retweeted it.",
-      "That moment lives in X's servers forever.",
-      "Early just makes it yours to keep."
+      "Someone posted before the quote tweets, before the lore, before everyone pretended they knew.",
+      "If you liked it and replied early, paste that original post URL.",
+      "Early proves your account showed up from X's servers."
     ]
   },
   {
     name: "YouTube",
     icon: "https://cdn.simpleicons.org/youtube/F2EAD8",
     status: "coming soon",
-    title: "The first hour under the video.",
+    title: "You commented before it became a moment.",
     lines: [
-      "Before the algorithm pushed it.",
-      "Before the comments flooded in.",
-      "You were comment #7 on something that now has 40 million views."
+      "You were in the comments before the algorithm turned it into a memory.",
+      "Early will pull the timestamp from your YouTube session.",
+      "Comment #7 deserves a receipt."
     ]
   },
   {
     name: "Instagram",
     icon: "https://cdn.simpleicons.org/instagram/F2EAD8",
     status: "coming soon",
-    title: "The creator before the crowd arrived.",
+    title: "You found them before the crowd did.",
     lines: [
       "They said, \"POV: you discover me before I'm famous.\"",
       "You did.",
-      "Now you can prove it for the day they finally ask."
+      "Early will turn that first signal into proof when Instagram support lands."
     ]
   }
 ] as const;
 
 const proofSteps = [
   {
-    title: "You were already there",
-    body: "Find the post. The comment. The like. The thing you did before you knew it mattered."
+    title: "Find the moment",
+    body: "Pick an X post where your account both liked and replied before the crowd arrived."
   },
   {
-    title: "Early pulls the receipt",
-    body: "Your authenticated session proves the timestamp. Not your word against theirs. Cryptographic fact."
+    title: "Paste the post URL",
+    body: "Use the original post URL. Early uses your session to prove the interaction happened."
   },
   {
-    title: "The proof lives forever",
-    body: "On-chain. Private. Yours. For whenever the moment finally means something."
+    title: "Keep the receipt",
+    body: "Stellar makes it checkable. Zama can rank how early you were without exposing the exact timing."
+  }
+] as const;
+
+const faqItems = [
+  {
+    question: "What kind of X post works?",
+    answer: "Use a public X post where your account both liked and replied before it became obvious. Good examples are a \"you had to be there\" moment, an artist before the breakout, or a creator before the crowd."
+  },
+  {
+    question: "Which link do I paste?",
+    answer: "Paste the URL of the original X post you liked and replied to. Not a screenshot, not a manually typed timestamp, and not a story about being early."
+  },
+  {
+    question: "What does Early prove?",
+    answer: "Early proves your account interacted with that post at a real time from X's servers. Reclaim proves the web fact, Stellar makes the receipt checkable, and the proof becomes something you can show later."
+  },
+  {
+    question: "Why does Zama matter here?",
+    answer: "Zama does not hide a reply that is already public on X. Its job is to keep Early from publishing the raw timing or early-delta into the EVM contract. The contract computes a tier from encrypted timing and reveals only the tier."
+  },
+  {
+    question: "Where does private ranking become useful?",
+    answer: "It matters when early proof becomes eligibility, rewards, or multi-platform taste scoring. A creator can ask who was early without receiving every exact timestamp or raw interaction detail."
   }
 ] as const;
 
@@ -591,7 +615,7 @@ function StatusBadge({
   return (
     <span
       className={clsx(
-        "inline-flex rounded-full border px-2.5 py-1 font-mono text-[0.65rem] uppercase tracking-[0.16em]",
+        "inline-flex rounded-full border px-2.5 py-1 text-[0.7rem] font-medium capitalize",
         tone === "success" && "border-apothecary-neon/30 bg-apothecary-moss/40 text-apothecary-mint",
         tone === "warning" && "border-apothecary-sage/25 bg-white/[0.045] text-apothecary-sage",
         tone === "danger" && "border-apothecary-lotus/35 bg-apothecary-lotus/10 text-apothecary-lotus",
@@ -604,13 +628,13 @@ function StatusBadge({
 }
 
 function FlowStep({
-  index,
+  marker,
   title,
   detail,
   status,
   isActive
 }: {
-  index: string;
+  marker: string;
   title: string;
   detail: string;
   status: string;
@@ -622,29 +646,31 @@ function FlowStep({
   return (
     <div
       className={clsx(
-        "rounded-[1.35rem] border p-4 transition duration-300",
+        "grid grid-cols-[2.75rem_minmax(0,1fr)] gap-3 rounded-[1.25rem] border p-4 transition duration-300",
         complete && "border-apothecary-neon/25 bg-apothecary-moss/25",
         isActive && !complete && !failed && "border-apothecary-sage/35 bg-white/[0.055] shadow-garden-glow",
         failed && "border-apothecary-lotus/35 bg-apothecary-lotus/10",
         !complete && !isActive && !failed && "border-white/10 bg-white/[0.03]"
       )}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span
-          className={clsx(
-            "grid h-8 w-8 shrink-0 place-items-center rounded-full border font-mono text-xs",
-            complete && "border-apothecary-neon/40 bg-apothecary-fern/35 text-apothecary-mint",
-            isActive && !complete && "border-apothecary-sage/40 bg-white/[0.06] text-receipt-bone",
-            failed && "border-apothecary-lotus/40 bg-apothecary-lotus/10 text-apothecary-lotus",
-            !complete && !isActive && !failed && "border-white/10 text-zinc-500"
-          )}
-        >
-          {complete ? "OK" : index}
-        </span>
-        {failed ? <StatusBadge status="failed" tone="danger" /> : complete ? <StatusBadge status="complete" tone="success" /> : <StatusBadge status={isActive ? "active" : "queued"} tone="warning" />}
+      <span
+        className={clsx(
+          "grid h-10 w-10 shrink-0 place-items-center rounded-full border font-mono text-[0.65rem]",
+          complete && "border-apothecary-neon/40 bg-apothecary-fern/35 text-apothecary-mint",
+          isActive && !complete && "border-apothecary-sage/40 bg-white/[0.06] text-receipt-bone",
+          failed && "border-apothecary-lotus/40 bg-apothecary-lotus/10 text-apothecary-lotus",
+          !complete && !isActive && !failed && "border-white/10 text-zinc-500"
+        )}
+      >
+        {complete ? "OK" : marker}
+      </span>
+      <div className="min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-semibold text-receipt-bone">{title}</p>
+          {failed ? <StatusBadge status="failed" tone="danger" /> : complete ? <StatusBadge status="complete" tone="success" /> : <StatusBadge status={isActive ? "active" : "queued"} tone="warning" />}
+        </div>
+        <p className="mt-2 text-sm leading-6 text-zinc-400">{detail}</p>
       </div>
-      <p className="mt-4 text-sm font-semibold text-receipt-bone">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-zinc-400">{detail}</p>
     </div>
   );
 }
@@ -747,6 +773,7 @@ function IdleView({
 }) {
   const heroRef = useRef<HTMLElement>(null);
   const manifestoRef = useRef<HTMLElement>(null);
+  const [openFaq, setOpenFaq] = useState(0);
 
   useEffect(() => {
     if (!heroRef.current) {
@@ -867,18 +894,18 @@ function IdleView({
             You do.
           </p>
           <p className="hero-body mt-7 max-w-2xl text-xl leading-8 text-zinc-300 sm:text-2xl">
-            Early is the proof that your taste was always this good.
+            Paste the X post you liked and replied to early. Early proves the moment straight from X.
           </p>
         </div>
 
         <div className="hidden 2xl:block">
           <div className="glass-panel relative overflow-hidden rounded-[2rem] p-6">
             <div className="mb-12 min-h-36 rounded-[1.4rem] border border-apothecary-sage/20 bg-[radial-gradient(circle_at_20%_22%,rgba(109,255,156,0.2),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] p-5">
-              <p className="max-w-[14rem] text-2xl font-semibold leading-tight text-receipt-bone">your taste has receipts now.</p>
+              <p className="max-w-[14rem] text-2xl font-semibold leading-tight text-receipt-bone">proof for the people who were there first.</p>
             </div>
             <div className="space-y-3 text-sm text-zinc-400">
               <div className="flex justify-between border-t border-white/10 pt-4">
-                <span>prove the action</span>
+                <span>prove the reply</span>
                 <span className="font-mono text-apothecary-sage">Reclaim</span>
               </div>
               <div className="flex justify-between border-t border-white/10 pt-4">
@@ -899,8 +926,8 @@ function IdleView({
           <input
             value={tweetUrl}
             onChange={(event) => setTweetUrl(event.target.value)}
-            placeholder="Paste an X post URL..."
-            aria-label="X thread reply URL"
+            placeholder="Paste the X post URL you liked and replied to"
+            aria-label="X post URL you liked and replied to"
             className="focus-garden min-h-16 flex-1 rounded-[1.2rem] bg-transparent px-4 text-base text-zinc-100 placeholder:text-zinc-500 sm:text-lg"
           />
           <button
@@ -908,9 +935,12 @@ function IdleView({
             disabled={!tweetUrl.trim()}
             className="proof-cta focus-garden min-h-14 rounded-[1.15rem] px-6 text-sm font-semibold text-velvet-950 transition duration-300 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-zinc-500"
           >
-            Prove You Were There
+            Prove the Moment
           </button>
         </div>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-zinc-300">
+          Current demo: use the original X post URL your account liked and replied to before it mattered.
+        </p>
         {proofError && (
           <p className="mt-4 max-w-2xl font-mono text-xs uppercase tracking-[0.16em] text-apothecary-lotus">
             {proofError}
@@ -963,10 +993,10 @@ function IdleView({
       >
         <motion.div variants={{ hidden: { opacity: 0, x: -40 }, show: { opacity: 1, x: 0, transition: { duration: 0.7, ease } } }}>
           <h2 className="max-w-3xl text-4xl font-semibold leading-tight text-receipt-bone sm:text-6xl">
-            No screenshots. No timestamps you set yourself.
+            What you are proving is simple.
           </h2>
           <p className="mt-6 max-w-xl text-xl leading-8 text-zinc-300">
-            The proof comes from their servers, not yours.
+            You liked it. You replied. Early proves that timing from the platform itself.
           </p>
         </motion.div>
 
@@ -996,10 +1026,71 @@ function IdleView({
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
             className="footer-proof-cta proof-cta focus-garden mt-7 rounded-full px-7 py-3 text-sm font-semibold text-velvet-950 transition"
           >
-            Prove You Were There
+            Prove the Moment
           </button>
         </div>
       </section>
+
+      <motion.section
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, amount: 0.2 }}
+        variants={revealContainer}
+        className="mt-28 grid gap-8 border-t border-white/10 pt-12 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:items-start"
+      >
+        <motion.div variants={{ hidden: { opacity: 0, x: -28 }, show: { opacity: 1, x: 0, transition: { duration: 0.65, ease } } }}>
+          <p className="font-mono text-xs text-apothecary-sage">FAQ</p>
+          <h2 className="mt-4 max-w-2xl text-4xl font-semibold leading-tight text-receipt-bone sm:text-5xl">
+            Before you paste.
+          </h2>
+          <p className="mt-5 max-w-xl text-base leading-7 text-zinc-400">
+            Bring the right X post, then let Early turn the interaction into something checkable.
+          </p>
+        </motion.div>
+
+        <motion.div variants={revealContainer} className="grid gap-3">
+          {faqItems.map((item, index) => {
+            const isOpen = openFaq === index;
+
+            return (
+              <motion.div
+                key={item.question}
+                variants={revealItem}
+                layout
+                className={clsx(
+                  "overflow-hidden rounded-[1.35rem] border backdrop-blur-md transition duration-300",
+                  isOpen ? "border-apothecary-sage/30 bg-apothecary-moss/20 shadow-garden-glow" : "border-white/10 bg-white/[0.035]"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(isOpen ? -1 : index)}
+                  aria-expanded={isOpen}
+                  className="focus-garden flex w-full items-center justify-between gap-4 px-5 py-4 text-left"
+                >
+                  <span className="text-base font-semibold text-receipt-bone">{item.question}</span>
+                  <span className={clsx("grid h-8 w-8 shrink-0 place-items-center rounded-full border font-mono text-sm transition", isOpen ? "border-apothecary-neon/35 bg-apothecary-fern/30 text-apothecary-mint" : "border-white/10 text-zinc-500")}>
+                    {isOpen ? "-" : "+"}
+                  </span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {isOpen && (
+                    <motion.div
+                      key="answer"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.28, ease }}
+                    >
+                      <p className="px-5 pb-5 text-sm leading-6 text-zinc-400">{item.answer}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </motion.section>
     </motion.section>
   );
 }
@@ -1188,6 +1279,10 @@ function VerifiedView({
       !isZamaBusy &&
       !hasSealedPrivateSignal
   );
+  const [selectedChapter, setSelectedChapter] = useState<VerifiedChapter | null>(null);
+  const autoChapter: VerifiedChapter = hasPublishedReceipt && !hasSealedPrivateSignal ? "private" : "receipt";
+  const activeChapter = selectedChapter ?? autoChapter;
+
   const primaryAction =
     !wallet.address
       ? {
@@ -1239,6 +1334,16 @@ function VerifiedView({
           disabled: !canSealWithZama,
           message: "Encrypt how early you were and reveal only the tier, not the exact timing."
         };
+  const receiptChapterDone = hasOnchainVerifier && hasPublishedReceipt;
+  const privateChapterLocked = !hasPublishedReceipt;
+  const receiptChapterStatus = receiptChapterDone ? "Receipt live" : hasOnchainVerifier ? "Verifier passed" : wallet.address ? "Ready to check" : "Wallet needed";
+  const privateChapterStatus = privateChapterLocked ? "After receipt" : hasSealedPrivateSignal ? tasteTierLabel ?? "Tier computed" : evmWallet.address ? "Ready to rank" : "EVM wallet needed";
+  const receiptError =
+    wallet.error ||
+    (verifierState.status === "failed" && verifierState.message) ||
+    (publishState.status === "failed" && publishState.message) ||
+    session?.stellarVerifier?.errorMessage;
+  const privateError = evmWallet.error || session?.zamaReceipt?.errorMessage || (zamaState.status === "failed" && zamaState.message);
 
   return (
     <motion.section
@@ -1278,14 +1383,14 @@ function VerifiedView({
             <div className="rounded-[1.75rem] border border-apothecary-neon/25 bg-apothecary-fern/20 p-5 shadow-garden-glow">
               <p className="break-words text-4xl font-semibold tracking-normal text-apothecary-mint sm:text-6xl">{shareCard.handle}</p>
               <p className="mt-5 max-w-xl text-2xl leading-tight text-receipt-bone sm:text-3xl">{shareCard.delta}</p>
-              <p className="mt-4 text-lg text-zinc-300">the timeline was still asleep.</p>
+              <p className="mt-4 text-lg text-zinc-300">while the timeline was still asleep.</p>
             </div>
             <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-5">
               <p className="text-sm leading-6 text-zinc-300">
-                Liked. Replied. Proven from an authenticated X session.
+                Reclaim proves the web fact. Stellar makes it checkable. Zama ranks the timing privately.
               </p>
               <div className="mt-8 h-px bg-white/10" />
-              <p className="mt-5 font-mono text-xs text-zinc-500">Private signal. Public proof path.</p>
+              <p className="mt-5 font-mono text-xs text-zinc-500">Public proof. Private taste.</p>
             </div>
           </div>
 
@@ -1298,153 +1403,220 @@ function VerifiedView({
             ))}
           </div>
 
-          <div className="relative z-10 mt-10 flex items-center justify-between border-t border-dashed border-white/15 pt-5 font-mono text-xs uppercase tracking-[0.18em] text-zinc-500">
+          <div className="relative z-10 mt-10 flex items-center justify-between border-t border-dashed border-white/15 pt-5 font-mono text-xs text-zinc-500">
             <span>Early proof</span>
             <span>{hasPublishedReceipt ? "receipt live" : hasOnchainVerifier ? "proof verified" : "ready for Stellar"}</span>
           </div>
         </motion.div>
       </div>
 
-      <aside className="glass-panel w-full rounded-[2rem] p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-[0.22em] text-zinc-500">Receipt path</p>
-            <h3 className="mt-3 text-2xl font-semibold tracking-normal text-receipt-bone">Keep the moment.</h3>
-          </div>
-          <StatusBadge status={wallet.address ? "wallet ready" : "wallet needed"} tone={wallet.address ? "success" : "warning"} />
+      <aside className="glass-panel w-full overflow-hidden rounded-[2rem] p-5 sm:p-6">
+        <div>
+          <p className="font-mono text-xs text-zinc-500">After the card</p>
+          <h3 className="mt-3 text-2xl font-semibold tracking-normal text-receipt-bone">Make it checkable. Then make it private.</h3>
+          <p className="mt-3 text-sm leading-6 text-zinc-400">
+            Stellar gives judges a public receipt. Zama computes the taste tier from encrypted timing.
+          </p>
         </div>
 
-        <div className="mt-6 grid gap-3">
-          <FlowStep index="01" title="Reclaim proof" detail="X confirmed the moment from your authenticated session." status="complete" />
-          <FlowStep
-            index="02"
-            title="On-chain verifier"
-            detail={hasOnchainVerifier ? "Stellar checked the Reclaim witness signature." : "Use your wallet to let Stellar check the proof."}
-            status={verifierStatus === "failed" ? "failed" : hasOnchainVerifier ? "complete" : "queued"}
-            isActive={Boolean(wallet.address && !hasOnchainVerifier)}
-          />
-          <FlowStep
-            index="03"
-            title="Public receipt"
-            detail={hasPublishedReceipt ? "A privacy-safe receipt now points to this proof." : "Publish the wallet-owned commitment after verification."}
-            status={receiptStatus === "failed" ? "failed" : hasPublishedReceipt ? "complete" : "queued"}
-            isActive={hasOnchainVerifier && !hasPublishedReceipt}
-          />
-          <FlowStep
-            index="04"
-            title="Private taste layer"
-            detail={
-              hasSealedPrivateSignal
-                ? `Zama computed ${tasteTierLabel ?? "a private tier"} without publishing the exact timing.`
-                : "Encrypt how early you were and reveal only the final taste tier."
-            }
-            status={zamaStatus === "failed" ? "failed" : hasSealedPrivateSignal ? "complete" : "queued"}
-            isActive={Boolean(evmWallet.address && !hasSealedPrivateSignal)}
-          />
-        </div>
-
-        <div className="mt-5 rounded-[1.35rem] border border-white/10 bg-velvet-900/65 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-zinc-500">Next action</p>
-            <StatusBadge status={receiptStatus ?? verifierStatus ?? "ready"} tone={hasPublishedReceipt ? "success" : verifierTone} />
-          </div>
-          <p className="mt-3 text-sm leading-6 text-zinc-300">{actionMessage}</p>
-          {wallet.address && (
-            <p className="mt-3 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-zinc-500">
-              Wallet <span className="text-zinc-300">{truncateMiddle(wallet.address)}</span>
-            </p>
-          )}
-          {(wallet.error || (verifierState.status === "failed" && verifierState.message) || (publishState.status === "failed" && publishState.message) || session?.stellarVerifier?.errorMessage) && (
-            <p className="mt-3 rounded-2xl border border-apothecary-lotus/25 bg-apothecary-lotus/10 p-3 font-mono text-xs uppercase tracking-[0.12em] text-apothecary-lotus">
-              {wallet.error || verifierState.message || publishState.message || session?.stellarVerifier?.errorMessage}
-            </p>
-          )}
-
-          <div className="mt-5 flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={primaryAction.onClick}
-              disabled={primaryAction.disabled}
-              className="focus-garden min-h-12 rounded-full bg-receipt-bone px-5 py-3 text-sm font-semibold text-receipt-ink transition hover:bg-white disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-zinc-500"
-            >
-              {primaryAction.label}
-            </button>
-
-            <button
-              type="button"
-              onClick={onReset}
-              className="focus-garden min-h-11 rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition hover:border-apothecary-sage/40 hover:text-apothecary-mint"
-            >
-              Prove another moment
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-[1.35rem] border border-apothecary-sage/15 bg-apothecary-moss/15 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-mono text-xs uppercase tracking-[0.18em] text-zinc-500">Zama FHE</p>
-            <StatusBadge status={zamaStatus ?? "optional"} tone={zamaTone} />
-          </div>
-          {tasteTierLabel && (
-            <div className="mt-4 rounded-2xl border border-apothecary-neon/25 bg-apothecary-fern/20 p-4">
-              <p className="font-mono text-[0.65rem] uppercase tracking-[0.18em] text-apothecary-sage">Private taste tier</p>
-              <p className="mt-2 text-2xl font-semibold text-apothecary-mint">{tasteTierLabel}</p>
-              <p className="mt-2 text-xs leading-5 text-zinc-400">Computed from encrypted timing data. Exact timing stays off-chain.</p>
-            </div>
-          )}
-          <p className="mt-3 text-sm leading-6 text-zinc-300">{zamaState.message || zamaAction.message}</p>
-          {evmWallet.address && (
-            <p className="mt-3 font-mono text-[0.7rem] uppercase tracking-[0.14em] text-zinc-500">
-              EVM wallet <span className="text-zinc-300">{truncateMiddle(evmWallet.address)}</span>
-            </p>
-          )}
-          {(evmWallet.error || session?.zamaReceipt?.errorMessage || (zamaState.status === "failed" && zamaState.message)) && (
-            <p className="mt-3 rounded-2xl border border-apothecary-lotus/25 bg-apothecary-lotus/10 p-3 font-mono text-xs uppercase tracking-[0.12em] text-apothecary-lotus">
-              {evmWallet.error || zamaState.message || session?.zamaReceipt?.errorMessage}
-            </p>
-          )}
+        <div className="mt-5 grid grid-cols-2 gap-2 rounded-[1.35rem] border border-white/10 bg-white/[0.035] p-1.5" role="tablist" aria-label="Proof chapters">
           <button
             type="button"
-            onClick={zamaAction.onClick}
-            disabled={zamaAction.disabled}
-            className="focus-garden mt-5 min-h-12 w-full rounded-full border border-apothecary-neon/25 bg-apothecary-moss/35 px-5 py-3 text-sm font-semibold text-apothecary-mint transition hover:border-apothecary-neon/50 hover:bg-apothecary-fern/30 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-zinc-500"
+            role="tab"
+            aria-selected={activeChapter === "receipt"}
+            onClick={() => setSelectedChapter("receipt")}
+            className={clsx(
+              "focus-garden rounded-[1.05rem] px-3 py-3 text-left transition",
+              activeChapter === "receipt" ? "bg-receipt-bone text-receipt-ink" : "text-zinc-400 hover:bg-white/[0.04] hover:text-receipt-bone"
+            )}
           >
-            {zamaAction.label}
+            <span className="block text-sm font-semibold">Receipt</span>
+            <span className={clsx("mt-1 block text-[0.7rem]", activeChapter === "receipt" ? "text-receipt-ink/65" : "text-zinc-500")}>{receiptChapterStatus}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeChapter === "private"}
+            onClick={() => setSelectedChapter("private")}
+            className={clsx(
+              "focus-garden rounded-[1.05rem] px-3 py-3 text-left transition",
+              activeChapter === "private" ? "bg-apothecary-neon text-velvet-950" : "text-zinc-400 hover:bg-white/[0.04] hover:text-receipt-bone"
+            )}
+          >
+            <span className="block text-sm font-semibold">Private rank</span>
+            <span className={clsx("mt-1 block text-[0.7rem]", activeChapter === "private" ? "text-velvet-950/70" : "text-zinc-500")}>{privateChapterStatus}</span>
           </button>
         </div>
 
-        <div className="mt-5 grid gap-3">
-          {zamaExplorerUrl && (
-            <a
-              href={zamaExplorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl border border-apothecary-lotus/20 bg-apothecary-lotus/10 p-3 font-mono text-xs uppercase tracking-[0.12em] text-apothecary-lotus transition hover:border-apothecary-lotus/40 hover:text-white"
+        <AnimatePresence mode="wait">
+          {activeChapter === "receipt" ? (
+            <motion.div
+              key="receipt-chapter"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 16 }}
+              transition={{ duration: 0.3, ease }}
+              className="mt-5 border-t border-white/10 pt-5"
             >
-              Zama tx {truncateMiddle(zamaTxHash)}
-            </a>
-          )}
-          {verifierExplorerUrl && (
-            <a
-              href={verifierExplorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl border border-apothecary-sage/20 bg-apothecary-moss/20 p-3 font-mono text-xs uppercase tracking-[0.12em] text-apothecary-mint transition hover:border-apothecary-neon/40 hover:text-white"
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-500">Stellar receipt</p>
+                  <h4 className="mt-2 text-2xl font-semibold text-receipt-bone">Make it checkable.</h4>
+                </div>
+                <StatusBadge status={receiptChapterDone ? "complete" : receiptStatus ?? verifierStatus ?? "next"} tone={receiptChapterDone ? "success" : verifierTone} />
+              </div>
+
+              <div className="mt-5 space-y-3">
+                <FlowStep marker="X" title="Reclaim proves it" detail="Early receives a valid proof from the authenticated X session." status="complete" />
+                <FlowStep
+                  marker="ST"
+                  title="Stellar checks it"
+                  detail={hasOnchainVerifier ? "The Reclaim witness signature is verified on Stellar testnet." : "Your Stellar wallet signs the verifier transaction."}
+                  status={verifierStatus === "failed" ? "failed" : hasOnchainVerifier ? "complete" : "queued"}
+                  isActive={Boolean(wallet.address && !hasOnchainVerifier)}
+                />
+                <FlowStep
+                  marker="REC"
+                  title="The receipt is kept"
+                  detail={hasPublishedReceipt ? "The public commitment now has a wallet-owned receipt." : "Publish the commitment after Stellar verifies the proof."}
+                  status={receiptStatus === "failed" ? "failed" : hasPublishedReceipt ? "complete" : "queued"}
+                  isActive={hasOnchainVerifier && !hasPublishedReceipt}
+                />
+              </div>
+
+              <div className="mt-5 border-t border-white/10 pt-5">
+                <p className="text-sm leading-6 text-zinc-300">{actionMessage}</p>
+                {wallet.address && (
+                  <p className="mt-3 font-mono text-[0.72rem] text-zinc-500">
+                    Stellar wallet <span className="text-zinc-300">{truncateMiddle(wallet.address)}</span>
+                  </p>
+                )}
+                {receiptError && (
+                  <p className="mt-3 rounded-2xl border border-apothecary-lotus/25 bg-apothecary-lotus/10 p-3 font-mono text-xs leading-5 text-apothecary-lotus">
+                    {receiptError}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={primaryAction.onClick}
+                  disabled={primaryAction.disabled}
+                  className="proof-cta focus-garden mt-5 min-h-12 w-full rounded-full px-5 py-3 text-sm font-semibold text-velvet-950 transition disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-zinc-500"
+                >
+                  {primaryAction.label}
+                </button>
+              </div>
+
+              {(verifierExplorerUrl || explorerUrl) && (
+                <div className="mt-4 grid gap-2 border-t border-white/10 pt-4">
+                  {verifierExplorerUrl && (
+                    <a
+                      href={verifierExplorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-2xl border border-apothecary-sage/20 bg-apothecary-moss/20 p-3 font-mono text-xs text-apothecary-mint transition hover:border-apothecary-neon/40 hover:text-white"
+                    >
+                      Verifier transaction {truncateMiddle(verifierTxHash)}
+                    </a>
+                  )}
+                  {explorerUrl && (
+                    <a
+                      href={explorerUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-2xl border border-apothecary-sage/20 bg-apothecary-moss/20 p-3 font-mono text-xs text-apothecary-mint transition hover:border-apothecary-neon/40 hover:text-white"
+                    >
+                      Receipt transaction {truncateMiddle(txHash)}
+                    </a>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="private-chapter"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.3, ease }}
+              className="mt-5 border-t border-white/10 pt-5"
             >
-              Verifier tx {truncateMiddle(verifierTxHash)}
-            </a>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-zinc-500">Zama private rank</p>
+                  <h4 className="mt-2 text-2xl font-semibold text-receipt-bone">Rank the taste, not the identity.</h4>
+                </div>
+                <StatusBadge status={privateChapterLocked ? "locked" : zamaStatus ?? "ready"} tone={privateChapterLocked ? "default" : zamaTone} />
+              </div>
+
+              <div className="mt-5">
+                <p className="text-sm leading-6 text-zinc-300">
+                  Zama computes how early you were from encrypted timing data. It reveals only the final tier.
+                </p>
+                {tasteTierLabel ? (
+                  <div className="mt-5 rounded-[1.2rem] border border-apothecary-neon/25 bg-apothecary-fern/25 p-4 shadow-garden-glow">
+                    <p className="font-mono text-[0.7rem] text-apothecary-sage">Private taste tier</p>
+                    <p className="mt-2 text-4xl font-semibold tracking-normal text-apothecary-mint">{tasteTierLabel}</p>
+                    <p className="mt-2 text-xs leading-5 text-zinc-400">Computed from encrypted timing.</p>
+                  </div>
+                ) : (
+                  <div className="mt-5 grid gap-3 text-sm">
+                    <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-3 text-zinc-400">
+                      <span>Input</span>
+                      <span className="text-right text-zinc-200">Encrypted timing</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-3 text-zinc-400">
+                      <span>Output</span>
+                      <span className="text-right text-zinc-200">Taste tier only</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 border-t border-white/10 pt-5">
+                <p className="text-sm leading-6 text-zinc-300">
+                  {privateChapterLocked ? "Keep the Stellar receipt first. Then this layer becomes available." : zamaState.message || zamaAction.message}
+                </p>
+                {evmWallet.address && (
+                  <p className="mt-3 font-mono text-[0.72rem] text-zinc-500">
+                    EVM wallet <span className="text-zinc-300">{truncateMiddle(evmWallet.address)}</span>
+                  </p>
+                )}
+                {privateError && (
+                  <p className="mt-3 rounded-2xl border border-apothecary-lotus/25 bg-apothecary-lotus/10 p-3 font-mono text-xs leading-5 text-apothecary-lotus">
+                    {privateError}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={privateChapterLocked ? () => setSelectedChapter("receipt") : zamaAction.onClick}
+                  disabled={privateChapterLocked ? false : zamaAction.disabled}
+                  className="focus-garden mt-5 min-h-12 w-full rounded-full border border-apothecary-neon/30 bg-apothecary-neon px-5 py-3 text-sm font-semibold text-velvet-950 transition hover:bg-receipt-bone disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/10 disabled:text-zinc-500"
+                >
+                  {privateChapterLocked ? "Finish the receipt first" : zamaAction.label}
+                </button>
+              </div>
+
+              {zamaExplorerUrl && (
+                <a
+                  href={zamaExplorerUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 block rounded-2xl border border-apothecary-lotus/20 bg-apothecary-lotus/10 p-3 font-mono text-xs text-apothecary-lotus transition hover:border-apothecary-lotus/40 hover:text-white"
+                >
+                  Zama transaction {truncateMiddle(zamaTxHash)}
+                </a>
+              )}
+            </motion.div>
           )}
-          {explorerUrl && (
-            <a
-              href={explorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-2xl border border-apothecary-sage/20 bg-apothecary-moss/20 p-3 font-mono text-xs uppercase tracking-[0.12em] text-apothecary-mint transition hover:border-apothecary-neon/40 hover:text-white"
-            >
-              Receipt tx {truncateMiddle(txHash)}
-            </a>
-          )}
-        </div>
+        </AnimatePresence>
+
+        <button
+          type="button"
+          onClick={onReset}
+          className="focus-garden mt-4 min-h-11 w-full rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-zinc-300 transition hover:border-apothecary-sage/40 hover:text-apothecary-mint"
+        >
+          Prove another moment
+        </button>
       </aside>
     </motion.section>
   );
