@@ -438,6 +438,10 @@ function toBytes32(hex: string) {
   return `0x${hex.replace(/^0x/, "")}`;
 }
 
+function isEvmAddress(value: string) {
+  return /^0x[a-fA-F0-9]{40}$/.test(value);
+}
+
 function bytesToHex(value: Uint8Array | string) {
   if (typeof value === "string") {
     return value.startsWith("0x") ? value : `0x${value}`;
@@ -2037,6 +2041,16 @@ export default function Home() {
       }
 
       const zamaReceipt = preparation.receipt;
+      const encryptionUserAddress = signerAddress.toLowerCase();
+      const encryptionContractAddress = zamaReceipt.contractAddress.toLowerCase();
+
+      if (!isEvmAddress(encryptionUserAddress)) {
+        throw new Error(`MetaMask returned an invalid EVM address: ${signerAddress}`);
+      }
+
+      if (!isEvmAddress(encryptionContractAddress)) {
+        throw new Error(`Zama contract address is invalid: ${zamaReceipt.contractAddress}`);
+      }
 
       setZamaState({
         status: "encrypting",
@@ -2058,8 +2072,8 @@ export default function Home() {
       });
       const encrypted = await fhevm.encrypt({
         values: [{ value: BigInt(zamaReceipt.earlyDeltaMinutes), type: "euint32" }],
-        contractAddress: zamaReceipt.contractAddress,
-        userAddress: signerAddress
+        contractAddress: encryptionContractAddress,
+        userAddress: encryptionUserAddress
       });
       const encryptedEarlyDeltaInput = encrypted.handles[0] ? bytesToHex(encrypted.handles[0]) : "";
       const inputProof = encrypted.inputProof ? bytesToHex(encrypted.inputProof) : "";
