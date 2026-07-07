@@ -2213,8 +2213,8 @@ export default function Home() {
       }
 
       const zamaReceipt = preparation.receipt;
-      const encryptionUserAddress = signerAddress.toLowerCase();
-      const encryptionContractAddress = zamaReceipt.contractAddress.toLowerCase();
+      const encryptionUserAddress = getAddress(signerAddress);
+      const encryptionContractAddress = getAddress(zamaReceipt.contractAddress);
 
       if (!isEvmAddress(encryptionUserAddress)) {
         throw new Error(`MetaMask returned an invalid EVM address: ${signerAddress}`);
