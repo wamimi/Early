@@ -352,7 +352,7 @@ STELLAR_RECLAIM_VERIFIER_FUNCTION_NAME=verify_proof
 NEXT_PUBLIC_ZAMA_CHAIN_ID=11155111
 NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS=
 NEXT_PUBLIC_ZAMA_RELAYER_URL=http://localhost:3000/api/zama/relayer/11155111
-NEXT_PUBLIC_ZAMA_EXPLORER_URL=https://explorer.testnet.zama.org
+NEXT_PUBLIC_ZAMA_EXPLORER_URL=https://sepolia.etherscan.io
 ZAMA_RELAYER_UPSTREAM_URL=https://relayer.testnet.zama.org/v2
 ZAMA_RELAYER_API_KEY=
 ZAMA_CAMPAIGN_WINDOW_MINUTES=10080
@@ -368,7 +368,7 @@ For deployed testing, set `NEXT_PUBLIC_APP_URL` to your deployed app URL so Recl
 
 For Zama testing, deploy `contracts/zama-private-receipt` to Sepolia, set `NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS`, set `ZAMA_CAMPAIGN_WINDOW_MINUTES` to the campaign window for `Still Early`, and route SDK relayer calls through Early's `/api/zama/relayer/11155111` proxy so the relayer API key stays server-side.
 
-`ZAMA_RELAYER_UPSTREAM_URL` is the API base used by the Zama SDK. It is not a browser page. Seeing a route error when opening the relayer URL directly does not mean the relayer is down; the SDK calls concrete API paths under that base. `NEXT_PUBLIC_ZAMA_EXPLORER_URL` is only for human transaction links to Zama's testnet explorer.
+`ZAMA_RELAYER_UPSTREAM_URL` is the API base used by the Zama SDK. It is not a browser page. Seeing a route error when opening the relayer URL directly does not mean the relayer is down; the SDK calls concrete API paths under that base. `NEXT_PUBLIC_ZAMA_EXPLORER_URL` is only for human transaction links to the Ethereum Sepolia host chain where the Early Zama contract is deployed.
 
 ## Supabase Setup
 

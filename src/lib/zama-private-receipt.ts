@@ -143,7 +143,7 @@ export function createZamaPrivateTastePayload(proofArtifact: unknown, walletAddr
     chainId,
     contractAddress,
     relayerUrl: getPublicEnv("NEXT_PUBLIC_ZAMA_RELAYER_URL", `${getAppUrl()}/api/zama/relayer/${chainId}`),
-    explorerUrl: getPublicEnv("NEXT_PUBLIC_ZAMA_EXPLORER_URL", "https://explorer.testnet.zama.org"),
+    explorerUrl: getPublicEnv("NEXT_PUBLIC_ZAMA_EXPLORER_URL", "https://sepolia.etherscan.io"),
     campaignWindowMinutes: getRequiredIntegerEnv("ZAMA_CAMPAIGN_WINDOW_MINUTES"),
     earlyDeltaMinutes: getEarlyDeltaMinutes(proofArtifact),
     publicCommitment: String(proofArtifact.publicCommitment),
@@ -154,6 +154,6 @@ export function createZamaPrivateTastePayload(proofArtifact: unknown, walletAddr
 }
 
 export function getZamaExplorerTxUrl(txHash: string) {
-  const baseUrl = getPublicEnv("NEXT_PUBLIC_ZAMA_EXPLORER_URL", "https://explorer.testnet.zama.org");
+  const baseUrl = getPublicEnv("NEXT_PUBLIC_ZAMA_EXPLORER_URL", "https://sepolia.etherscan.io");
   return `${baseUrl.replace(/\/$/, "")}/tx/${txHash}`;
 }

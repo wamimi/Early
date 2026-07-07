@@ -426,7 +426,7 @@ function getZamaChainId() {
 }
 
 function getZamaExplorerUrl(txHash: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_ZAMA_EXPLORER_URL ?? "https://explorer.testnet.zama.org";
+  const baseUrl = process.env.NEXT_PUBLIC_ZAMA_EXPLORER_URL ?? "https://sepolia.etherscan.io";
   return `${baseUrl.replace(/\/$/, "")}/tx/${txHash}`;
 }
 
@@ -551,7 +551,7 @@ async function switchToZamaChain() {
           chainName: "Sepolia",
           nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
           rpcUrls: ["https://ethereum-sepolia-rpc.publicnode.com"],
-          blockExplorerUrls: [process.env.NEXT_PUBLIC_ZAMA_EXPLORER_URL ?? "https://explorer.testnet.zama.org"]
+          blockExplorerUrls: [process.env.NEXT_PUBLIC_ZAMA_EXPLORER_URL ?? "https://sepolia.etherscan.io"]
         }
       ]
     });
