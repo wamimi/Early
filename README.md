@@ -16,7 +16,7 @@ This project is built for that feeling: the quiet, very online knowledge that yo
 
 ## What Works Now
 
-The current app proves an X endorsement and carries it all the way to Stellar testnet.
+The current app proves an X endorsement, verifies it on Stellar testnet, publishes a receipt, and then computes a private taste tier with Zama/FHEVM on Sepolia.
 
 Today, Early can:
 
@@ -28,7 +28,10 @@ Today, Early can:
 - connect a Stellar wallet,
 - verify the Reclaim proof on Stellar testnet,
 - publish a privacy-safe receipt on Stellar testnet,
-- compute a private taste tier with Zama/FHEVM once the Sepolia contract address is configured.
+- connect an EVM wallet on Sepolia,
+- encrypt the user's early timing signal client-side with Zama,
+- compute a private taste tier in a Zama/FHEVM contract,
+- reveal only the tier, not the raw X handle, raw reply timestamp, or raw early delta.
 
 Current Reclaim provider:
 
@@ -38,7 +41,7 @@ Provider ID: fe0767e9-8172-48c0-ba64-702703c4c745
 Version: 1.0.0
 ```
 
-Current Stellar contracts:
+Current deployed contracts:
 
 ```txt
 Reclaim verifier contract:
@@ -47,13 +50,13 @@ CA3EMXR6JOOTNP44T3OAJFMMMGKRRETDJKBLZP2RU3SIY4SDFAH54DU5
 Early receipt contract:
 CDBE7NFQPVD5LXU7TJVQTXZNBYIH75VXQW24DA7LARS3MA5XLT2V2VRM
 
-Zama private taste contract:
-Deploy from contracts/zama-private-receipt and set NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS.
+Zama private taste contract on Ethereum Sepolia:
+0x3d67c6b9c701Ac436AE557E703C8d4997035549C
 ```
 
-## Why This Fits The Stellar ZK Track
+## The ZK And Privacy Architecture
 
-Early is a real-world ZK application with an actual user-facing proof flow.
+Early is a real-world ZK and privacy application with an actual user-facing proof flow.
 
 The ZK part starts with Reclaim zkTLS: an authenticated X server response becomes a verifiable proof of a real Web2 action. The Stellar part is not decorative. The app serializes the verified Reclaim proof material, sends it to a Stellar testnet verifier contract, and only then allows the user to publish a wallet-owned receipt.
 
@@ -62,7 +65,9 @@ For the demo, Stellar is doing two jobs:
 - verifying the Reclaim witness signature on testnet,
 - storing a public receipt that points to the private proof commitment.
 
-That gives Early a clean bridge between social proof and public infrastructure. The user keeps the cultural story; Stellar keeps the durable receipt. Zama adds the private computation layer: Early can rank how early someone was from encrypted timing data without publishing the exact timing or X identity to the EVM chain.
+That gives Early a clean bridge between social proof and public infrastructure. The user keeps the cultural story; Stellar keeps the durable receipt.
+
+Zama adds the private computation layer. Early encrypts the timing signal before the EVM contract sees it, then computes a taste tier over encrypted data. The public result can say `First Hour`, `Day One`, `Week One`, `Still Early`, or `Late`, while the exact social timestamp and X identity stay out of the Zama contract call.
 
 ## The X Proof
 
@@ -131,7 +136,7 @@ X authenticated server data
 -> Early Proof Artifact
 -> Reclaim proof verification on Stellar testnet
 -> Early receipt on Stellar testnet
--> optional Zama/FHEVM private taste tier
+-> Zama/FHEVM private taste tier on Sepolia
 ```
 
 This is the working end-to-end demo.
@@ -175,7 +180,7 @@ type EarlyProofArtifact = {
 };
 ```
 
-The artifact lets the frontend show a clean receipt, lets the server prepare Stellar transactions, and gives Zama one stable shape to consume.
+The artifact lets the frontend show a clean receipt, lets the server prepare Stellar transactions, and gives Zama one stable shape to consume. Zama does not need the full Reclaim payload. It needs the commitment, proof hash, parent content id, and reply timestamp-derived early delta.
 
 For development, the raw Reclaim proof payload is still stored in Supabase so the proof pipeline can be debugged. A production hardening pass should reduce retention and store only what the app truly needs.
 
@@ -220,7 +225,7 @@ The X version proves you liked and replied before a post became culturally impor
 
 This is useful for builders, writers, researchers, founders, artists, and people who find ideas before they become consensus. A tweet can become a reference point months later. Early lets the person who genuinely engaged with it prove they were already there.
 
-Technical status: working provider, working Reclaim callback, working Stellar verification, working Stellar receipt.
+Technical status: working custom Reclaim provider, working Reclaim callback, working Stellar proof verification, working Stellar receipt, and working Zama private taste tier from the encrypted timing signal.
 
 ### YouTube: Future Provider
 
@@ -285,7 +290,13 @@ What did you endorse, when did you endorse it, and can the platform prove it?
 
 Zama is Early's private computation layer.
 
-The first Zama milestone encrypts the user's early-delta in minutes: the gap between when the X post was created and when the authenticated reply happened. The contract computes a taste tier over encrypted data:
+The Zama layer answers the product question people actually care about:
+
+```txt
+How early were you?
+```
+
+Early derives `earlyDeltaMinutes`, the gap between when the X post was created and when the authenticated reply happened. The browser encrypts that value with Zama before sending it to the contract. The contract then computes a taste tier over encrypted data:
 
 ```txt
 First Hour / Day One / Week One / Still Early / Late
@@ -293,15 +304,27 @@ First Hour / Day One / Week One / Still Early / Late
 
 This is the important privacy boundary: the EVM chain receives encrypted timing data and returns only a tier. It does not need the raw X handle, the raw reply timestamp, the raw early delta, or the full Reclaim payload.
 
+That is why Zama matters here. Early is not just hiding a field for the sake of it. It is turning a private cultural signal into a public-but-minimized result. A creator, campaign, or community can see that someone was `Day One` or `First Hour` without requiring the person to publish their exact social timestamp forever.
+
+The Zama transaction logs show the computation happening:
+
+- `VerifyInput`: verifies the encrypted input proof.
+- `TrivialEncrypt`: encrypts public thresholds such as `60`, `1440`, and `10080` minutes.
+- `FheLe`: compares the encrypted early delta against those thresholds.
+- `FheIfThenElse`: selects the encrypted tier.
+- `Allowed` / `AllowedForDecryption`: grants the contract, user, and public decrypt path access only to the intended handles.
+
 This branch does not claim full wallet-to-social unlinkability yet. During development, the Early backend still handles the Reclaim callback and stores proof artifacts for debugging. The Zama claim is narrower and concrete: the on-chain private taste computation runs on encrypted timing data.
 
 Current Zama status:
 
 - Hardhat/FHEVM contract workspace lives in `contracts/zama-private-receipt`.
+- Contract is deployed on Ethereum Sepolia at `0x3d67c6b9c701Ac436AE557E703C8d4997035549C`.
 - Frontend can connect an EVM wallet on Sepolia.
 - Frontend initializes the current `@zama-fhe/sdk` package and encrypts `earlyDeltaMinutes` client-side before calling the FHEVM contract.
-- Server stores only sanitized Zama transaction metadata in Supabase.
-- Deploy the Zama contract and set `NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS` before using the branch end to end.
+- Server stores sanitized Zama transaction metadata in Supabase.
+- The UI shows the computed private taste tier after the transaction succeeds.
+- Transaction links point to Sepolia Etherscan because the Zama/FHEVM app contract lives on Ethereum Sepolia as the host chain.
 
 ## Tech Stack
 
@@ -350,7 +373,7 @@ STELLAR_RECLAIM_VERIFIER_CONTRACT_ID=CA3EMXR6JOOTNP44T3OAJFMMMGKRRETDJKBLZP2RU3S
 STELLAR_RECLAIM_VERIFIER_FUNCTION_NAME=verify_proof
 
 NEXT_PUBLIC_ZAMA_CHAIN_ID=11155111
-NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS=
+NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS=0x3d67c6b9c701Ac436AE557E703C8d4997035549C
 NEXT_PUBLIC_ZAMA_RELAYER_URL=http://localhost:3000/api/zama/relayer/11155111
 NEXT_PUBLIC_ZAMA_EXPLORER_URL=https://sepolia.etherscan.io
 ZAMA_RELAYER_UPSTREAM_URL=https://relayer.testnet.zama.org/v2
@@ -366,7 +389,7 @@ Keep these secret:
 
 For deployed testing, set `NEXT_PUBLIC_APP_URL` to your deployed app URL so Reclaim callbacks return to the correct domain.
 
-For Zama testing, deploy `contracts/zama-private-receipt` to Sepolia, set `NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS`, set `ZAMA_CAMPAIGN_WINDOW_MINUTES` to the campaign window for `Still Early`, and route SDK relayer calls through Early's `/api/zama/relayer/11155111` proxy so the relayer API key stays server-side.
+For Zama testing, the current Sepolia contract address is already included above. If you deploy your own copy from `contracts/zama-private-receipt`, replace `NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS`, set `ZAMA_CAMPAIGN_WINDOW_MINUTES` to the campaign window for `Still Early`, and route SDK relayer calls through Early's `/api/zama/relayer/11155111` proxy so any relayer API key stays server-side.
 
 `ZAMA_RELAYER_UPSTREAM_URL` is the API base used by the Zama SDK. It is not a browser page. Seeing a route error when opening the relayer URL directly does not mean the relayer is down; the SDK calls concrete API paths under that base. `NEXT_PUBLIC_ZAMA_EXPLORER_URL` is only for human transaction links to the Ethereum Sepolia host chain where the Early Zama contract is deployed.
 
@@ -404,9 +427,11 @@ Deploy the private taste contract to Sepolia:
 
 ```bash
 npx hardhat vars set MNEMONIC
-npx hardhat vars set INFURA_API_KEY
+npx hardhat vars set SEPOLIA_RPC_URL
 pnpm deploy:sepolia
 ```
+
+`SEPOLIA_RPC_URL` can be an Alchemy Sepolia URL. The deployed Zama app contract is an Ethereum Sepolia contract that uses Zama/FHEVM infrastructure for encrypted inputs and FHE operations.
 
 Run the dev server:
 
