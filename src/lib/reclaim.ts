@@ -57,12 +57,32 @@ function getRequiredEnv(name: string) {
   return value;
 }
 
-function getAppUrl(origin?: string) {
-  if (process.env.NODE_ENV !== "production" && origin) {
-    return origin;
+function getTrustedOrigin(origin?: string) {
+  if (!origin) {
+    return null;
   }
 
-  return process.env.NEXT_PUBLIC_APP_URL ?? origin ?? "http://localhost:3000";
+  try {
+    const url = new URL(origin);
+
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      return url.origin;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function getAppUrl(origin?: string) {
+  const trustedOrigin = getTrustedOrigin(origin);
+
+  if (trustedOrigin) {
+    return trustedOrigin;
+  }
+
+  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
 function shouldRequireTeeAttestation() {
