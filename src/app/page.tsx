@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
+import { LandingPage } from "@/components/landing-page";
 
 type ProofState = "idle" | "zktls" | "fhe" | "verified";
 type ProofSessionStatus = "pending" | "succeeded" | "failed";
@@ -751,40 +752,61 @@ function AmbientField() {
   );
 }
 
-function Header({ wallet, onConnectWallet }: { wallet: WalletState; onConnectWallet: () => void }) {
+function Header({
+  wallet,
+  onConnectWallet,
+  isLanding
+}: {
+  wallet: WalletState;
+  onConnectWallet: () => void;
+  isLanding: boolean;
+}) {
   return (
-    <header className="relative z-10 flex w-full items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
-      <div className="flex items-center gap-3">
-        <div className="relative h-8 w-8 overflow-hidden rounded-full border border-apothecary-sage/30 bg-apothecary-moss/35 shadow-garden-glow">
-          <span className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-apothecary-neon" />
-          <span className="absolute left-[1.05rem] top-1/2 h-px w-3 -translate-y-1/2 bg-apothecary-sage/80" />
-          <span className="absolute right-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-receipt-bone/80" />
-        </div>
-        <div className="text-lg font-semibold tracking-normal text-receipt-bone">Early</div>
-      </div>
-      <button
-        type="button"
-        onClick={onConnectWallet}
-        disabled={wallet.isConnecting}
-        className="focus-garden rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-zinc-100 backdrop-blur-md transition duration-300 hover:border-apothecary-sage/40 hover:bg-apothecary-moss/20 disabled:cursor-wait disabled:text-zinc-500"
-      >
-        {wallet.address ? truncateMiddle(wallet.address) : wallet.isConnecting ? "Connecting..." : "Connect Wallet"}
-      </button>
+    <header className={clsx("site-header", !isLanding && "site-header-app")}>
+      <a href={isLanding ? "#prove" : "/"} className="site-wordmark" aria-label="Early home">
+        <span className="header-mark" aria-hidden="true"><i /><i /><i /><i /></span>
+        <span>Early</span>
+      </a>
+      {isLanding && (
+        <nav aria-label="Primary navigation">
+          <a href="#story">How it works</a>
+          <a href="#for-creators">For creators</a>
+          <a href="#for-brands">For brands</a>
+          <a href="#developers">Developers</a>
+        </nav>
+      )}
+      {isLanding ? (
+        <a href="#prove" className="header-command">Create proof <span aria-hidden="true">↗</span></a>
+      ) : (
+        <button type="button" onClick={onConnectWallet} disabled={wallet.isConnecting} className="header-command">
+          {wallet.address ? truncateMiddle(wallet.address) : wallet.isConnecting ? "Connecting..." : "Connect wallet"}
+        </button>
+      )}
     </header>
   );
 }
 
-function IdleView({
-  tweetUrl,
-  setTweetUrl,
-  onSubmit,
-  proofError
-}: {
+type IdleViewProps = {
   tweetUrl: string;
   setTweetUrl: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   proofError: string;
-}) {
+};
+
+function IdleView(props: IdleViewProps) {
+  if (process.env.NEXT_PUBLIC_LEGACY_LANDING === "1") {
+    return <LegacyIdleView {...props} />;
+  }
+
+  return <LandingPage {...props} />;
+}
+
+function LegacyIdleView({
+  tweetUrl,
+  setTweetUrl,
+  onSubmit,
+  proofError
+}: IdleViewProps) {
   const heroRef = useRef<HTMLElement>(null);
   const manifestoRef = useRef<HTMLElement>(null);
   const [openFaq, setOpenFaq] = useState(0);
@@ -2438,8 +2460,8 @@ export default function Home() {
 
   return (
     <main className="grain-field relative min-h-svh w-full max-w-full overflow-x-hidden bg-velvet-950">
-      <AmbientField />
-      <Header wallet={wallet} onConnectWallet={handleConnectWallet} />
+      {proofState !== "idle" && <AmbientField />}
+      <Header wallet={wallet} onConnectWallet={handleConnectWallet} isLanding={proofState === "idle"} />
       <AnimatePresence mode="wait">
         {proofState === "idle" && <IdleView tweetUrl={tweetUrl} setTweetUrl={setTweetUrl} onSubmit={handleSubmit} proofError={proofError} />}
         {activeStage && (
