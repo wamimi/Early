@@ -4,8 +4,8 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Early",
-  description: "A private proof-of-discovery interface for cultural scouts.",
+  title: "Early | Proof of discovery for the internet",
+  description: "Turn the things you discovered before the crowd into verifiable, privacy-conscious proof.",
   icons: {
     icon: "/early-logo.svg",
     apple: "/early-logo.svg"
