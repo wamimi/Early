@@ -99,54 +99,35 @@ function AttentionField({ dots }: { dots: number }) {
 
 function HeroArchive() {
   return (
-    <div className="archive-stage" aria-label="A post, reply, timestamp, and Early receipt connected as proof">
-      <article className="artifact artifact-post archive-float-one">
-        <div className="artifact-person">
-          <span className="artifact-avatar artifact-avatar-coral">N</span>
-          <span><strong>Nia posted</strong><small>@niacreates</small></span>
-          <span className="artifact-more">...</span>
-        </div>
-        <p>New sound. No rollout. Just putting it here.</p>
-        <time>8:21 AM</time>
-        <div className="artifact-actions"><span>12 replies</span><span>12 likes</span></div>
-      </article>
+    <div className="archive-stage culture-collage" aria-label="Real creator posts offering recognition to people who found them early">
+      <p className="culture-collage-label">Actual creator language. Verifiable with Early.</p>
 
-      <article className="artifact artifact-video archive-float-two">
-        <div className="video-still"><span className="play-mark">▶</span></div>
-        <div className="video-progress"><span /></div>
-        <small>0:23 / 1:07</small>
-      </article>
+      <figure className="creator-post creator-post-small">
+        <span>01</span>
+        <img src="/creator-small-artist.jpg" alt="Creator post saying you found a small artist before they blew up" />
+      </figure>
 
-      <article className="artifact artifact-reply archive-float-three">
-        <div className="artifact-person">
-          <span className="artifact-avatar artifact-avatar-blue">Y</span>
-          <span><strong>You</strong><small>Replying to @niacreates</small></span>
-        </div>
-        <p>This has been on repeat all morning.</p>
-        <div className="reply-proof"><span>liked</span><span>replied</span></div>
-      </article>
+      <figure className="creator-post creator-post-art">
+        <span>02</span>
+        <img src="/creator-art-before-famous.jpg" alt="Artist post saying you saw their art before they were famous" />
+      </figure>
 
-      <div className="artifact artifact-comment archive-float-four">
-        <span className="comment-dot" />
-        <strong>rare catch</strong>
-        <span>keep this one</span>
-      </div>
+      <figure className="creator-post creator-post-main">
+        <span>03 · DAY ONE PROMISE</span>
+        <img src="/creator-day-one-backstage.jpg" alt="Creator promising a future backstage pass to Day One fans" />
+      </figure>
 
-      <div className="artifact artifact-timestamp archive-float-five">MAY 16, 2026 · 08:37:12 UTC</div>
+      <figure className="creator-post creator-post-ticket">
+        <span>04</span>
+        <img src="/creator-free-ticket.jpg" alt="Band post offering early supporters a future concert ticket" />
+      </figure>
 
-      <div className="artifact artifact-music archive-float-six">
-        <span className="music-play">▶</span><strong>01:23</strong><span className="music-track"><i /></span><strong>03:45</strong>
-      </div>
+      <div className="culture-proof-thread" aria-hidden="true"><i /><i /></div>
 
-      <div className="signal-path signal-path-a" aria-hidden="true" />
-      <div className="signal-path signal-path-b" aria-hidden="true" />
-      <span className="signal-node signal-node-source" aria-hidden="true" />
-      <span className="signal-node signal-node-receipt" aria-hidden="true" />
-
-      <article className="proof-ticket archive-float-seven">
-        <div className="ticket-brand"><SignalMark compact /><strong>EARLY RECEIPT</strong></div>
-        <div><small>Proof recorded</small><strong>Hash 7A9F...3C2D</strong></div>
-        <div className="ticket-status"><small>VERIFIED</small><strong>Discovery #0042</strong></div>
+      <article className="culture-receipt">
+        <SignalMark compact />
+        <div><small>EARLY RECEIPT · #0042</small><strong>You were here before the crowd.</strong></div>
+        <div><span>LIKED</span><span>REPLIED</span><small>VERIFIED</small></div>
       </article>
     </div>
   );

@@ -427,6 +427,118 @@ input {
 .proof-ticket > div:nth-child(2) strong,
 .ticket-status small { color: #278f37; }
 
+.culture-collage { min-height: 34rem; }
+
+.culture-collage-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 8;
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid rgba(117, 255, 130, 0.55);
+  background: var(--ink);
+  color: var(--signal);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+.creator-post {
+  position: absolute;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(241, 239, 231, 0.72);
+  border-radius: 3px;
+  background: #111;
+  box-shadow: 0 1.75rem 4rem rgba(0, 0, 0, 0.48);
+  transition: transform 450ms cubic-bezier(0.16, 1, 0.3, 1), filter 300ms ease;
+}
+
+.creator-post::after {
+  position: absolute;
+  inset: 0;
+  border: 0.32rem solid rgba(7, 10, 8, 0.35);
+  content: "";
+  pointer-events: none;
+}
+
+.creator-post > span {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.55rem;
+  z-index: 2;
+  padding: 0.35rem 0.45rem;
+  background: var(--signal);
+  color: var(--ink);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.52rem;
+  font-weight: 850;
+}
+
+.creator-post img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.creator-post:hover { z-index: 9; filter: saturate(1.08); }
+
+.creator-post-small { top: 2rem; left: 0.25rem; z-index: 1; width: 16rem; aspect-ratio: 1.48; transform: rotate(-5deg); }
+.creator-post-small:hover { transform: rotate(-2deg) translateY(-0.4rem); }
+.creator-post-art { top: 0.5rem; right: 0; z-index: 2; width: 11.5rem; aspect-ratio: 0.71; transform: rotate(5deg); }
+.creator-post-art:hover { transform: rotate(2deg) translateY(-0.4rem); }
+.creator-post-main { top: 5.4rem; left: 7.25rem; z-index: 4; width: 23rem; aspect-ratio: 1.29; transform: rotate(1.5deg); }
+.creator-post-main:hover { transform: rotate(0deg) translateY(-0.45rem); }
+.creator-post-main > span { background: var(--mineral); }
+.creator-post-ticket { bottom: 4.9rem; left: 0; z-index: 5; width: 22rem; aspect-ratio: 1.94; transform: rotate(-2deg); }
+.creator-post-ticket:hover { transform: rotate(0deg) translateY(-0.4rem); }
+
+.culture-proof-thread {
+  position: absolute;
+  right: 5.5rem;
+  bottom: 3.8rem;
+  z-index: 3;
+  width: 1px;
+  height: 13rem;
+  border-left: 1px dashed var(--signal);
+}
+
+.culture-proof-thread i {
+  position: absolute;
+  left: -0.35rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  border: 2px solid var(--mineral);
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.culture-proof-thread i:first-child { top: 0; }
+.culture-proof-thread i:last-child { bottom: 0; }
+
+.culture-receipt {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  width: min(100%, 27rem);
+  min-height: 5.6rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--mineral);
+  border-radius: 2px;
+  background: var(--mineral);
+  color: var(--ink);
+  box-shadow: 0 1.75rem 4rem rgba(0, 0, 0, 0.5);
+  transform: rotate(1deg);
+}
+
+.culture-receipt > div { display: grid; gap: 0.35rem; min-width: 0; }
+.culture-receipt > div:last-child { grid-template-columns: auto auto; padding-left: 0.9rem; border-left: 1px dashed rgba(7, 10, 8, 0.35); }
+.culture-receipt small { color: #555b55; font-family: var(--font-geist-mono), monospace; font-size: 0.52rem; }
+.culture-receipt strong { font-size: 0.85rem; line-height: 1.15; }
+.culture-receipt span { color: #238a34; font-family: var(--font-geist-mono), monospace; font-size: 0.56rem; font-weight: 850; }
+.culture-receipt > div:last-child small { grid-column: 1 / -1; color: var(--ink); font-weight: 800; }
+
 .signal-mark { position: relative; display: inline-grid; flex: 0 0 auto; width: 2.25rem; height: 2.25rem; place-items: center; }
 .signal-mark i { position: absolute; top: 50%; left: 50%; width: 100%; height: 2px; background: var(--signal); transform-origin: left center; }
 .signal-mark i::after { position: absolute; right: 0; top: -2px; width: 5px; height: 5px; border-radius: 50%; content: ""; background: var(--signal); }
@@ -529,7 +641,7 @@ input {
 .private-vault::before,
 .private-vault::after { position: absolute; top: 50%; left: 50%; width: 24rem; height: 24rem; border: 1px solid rgba(117, 255, 130, 0.18); border-radius: 50%; content: ""; transform: translate(-50%, -50%); }
 .private-vault::after { width: 31rem; height: 31rem; border-color: rgba(241, 239, 231, 0.08); }
-.vault-result { position: absolute; right: 4%; bottom: 4%; z-index: 4; display: grid; gap: 0.35rem; min-width: 10rem; padding: 1rem; border-left: 3px solid var(--signal); background: var(--mineral); color: var(--ink); }
+.vault-result { position: absolute; right: 4%; bottom: 4%; z-index: 4; display: grid; gap: 0.35rem; min-width: 10rem; padding: 1rem; border: 1px solid var(--signal); background: var(--mineral); color: var(--ink); }
 .vault-result span { font-size: 0.7rem; }
 .vault-result strong { color: #238a34; font-family: var(--font-geist-mono), monospace; }
 .private-copy > p { color: #b3b8b2; }
@@ -665,6 +777,18 @@ input {
   .proof-entry input { min-height: 3.6rem; }
   .proof-entry button { width: calc(100% - 2px); min-height: 3.5rem; }
   .archive-stage { min-height: 31rem; transform: scale(0.86); transform-origin: top center; margin-bottom: -4rem; }
+  .archive-stage.culture-collage { min-height: 35rem; margin: 1.25rem 0 0; transform: none; }
+  .culture-collage-label { top: 0; }
+  .creator-post-small { top: 2.2rem; left: 0; width: 11.5rem; }
+  .creator-post-art { top: 1rem; right: 0; width: 8.5rem; }
+  .creator-post-main { top: 6rem; left: 1.2rem; width: 19rem; }
+  .creator-post-ticket { bottom: 4.8rem; left: 0; width: 18.5rem; }
+  .culture-proof-thread { right: 3.5rem; bottom: 3.5rem; height: 12rem; }
+  .culture-receipt { right: 0; width: 20.5rem; min-height: 5.2rem; gap: 0.65rem; padding: 0.75rem; }
+  .culture-receipt > div:last-child { padding-left: 0.65rem; }
+  .culture-receipt strong { font-size: 0.72rem; }
+  .culture-receipt small,
+  .culture-receipt span { font-size: 0.48rem; }
   .artifact-post { left: 0; }
   .artifact-video { right: -2rem; width: 12rem; }
   .artifact-reply { top: 12rem; left: 1rem; width: 16rem; }
@@ -706,6 +830,7 @@ input {
 
 @media (max-width: 430px) {
   .archive-stage { margin-inline: -1rem; }
+  .archive-stage.culture-collage { margin-inline: 0; }
   .artifact-video,
   .artifact-comment { right: -4rem; }
   .proof-ticket { right: -2rem; }
