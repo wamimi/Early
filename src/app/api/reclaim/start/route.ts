@@ -4,6 +4,10 @@ import { createProofSession } from "@/lib/supabase-proof-sessions";
 
 export const runtime = "nodejs";
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unknown error";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as { tweetUrl?: unknown };
@@ -13,18 +17,30 @@ export async function POST(request: NextRequest) {
     }
 
     const origin = request.headers.get("origin") ?? undefined;
-    const proofRequest = await createReclaimProofRequest({
-      tweetUrl: body.tweetUrl,
-      origin
-    });
+    let proofRequest;
 
-    await createProofSession({
-      sessionId: proofRequest.sessionId,
-      tweetId: proofRequest.tweetId,
-      tweetUrl: body.tweetUrl,
-      requestUrl: proofRequest.requestUrl,
-      statusUrl: proofRequest.statusUrl
-    });
+    try {
+      proofRequest = await createReclaimProofRequest({
+        tweetUrl: body.tweetUrl,
+        origin
+      });
+    } catch (error) {
+      console.error("[Early/Reclaim] Failed to create proof request", error);
+      throw new Error(`Reclaim request failed: ${getErrorMessage(error)}`);
+    }
+
+    try {
+      await createProofSession({
+        sessionId: proofRequest.sessionId,
+        tweetId: proofRequest.tweetId,
+        tweetUrl: body.tweetUrl,
+        requestUrl: proofRequest.requestUrl,
+        statusUrl: proofRequest.statusUrl
+      });
+    } catch (error) {
+      console.error("[Early/Reclaim] Failed to save proof session", error);
+      throw new Error(`Proof session storage failed: ${getErrorMessage(error)}`);
+    }
 
     return NextResponse.json({
       sessionId: proofRequest.sessionId,
