@@ -2,11 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import clsx from "clsx";
-import { AnimatePresence, motion } from "framer-motion";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 type LandingPageProps = {
   tweetUrl: string;
@@ -15,381 +13,546 @@ type LandingPageProps = {
   proofError: string;
 };
 
-const faqItems = [
+type ProviderName = "X" | "YouTube" | "Instagram" | "Spotify" | "GitHub";
+
+const providers = [
+  { name: "X", status: "Live", icon: "https://cdn.simpleicons.org/x/111411" },
+  { name: "YouTube", status: "Soon", icon: "https://cdn.simpleicons.org/youtube/FF0033" },
+  { name: "Instagram", status: "Soon", icon: "https://cdn.simpleicons.org/instagram/E4405F" },
+  { name: "Spotify", status: "Soon", icon: "https://cdn.simpleicons.org/spotify/1ED760" },
+  { name: "GitHub", status: "Soon", icon: "https://cdn.simpleicons.org/github/111411" }
+] as const;
+
+const rotatingLines = [
+  "Now it's proof.",
+  "Now it's valuable.",
+  "Now it's rewarded.",
+  "Now it's portable."
+] as const;
+
+const faqs = [
   {
-    question: "What kind of X post works?",
-    answer:
-      "Use the original public X post where your account both liked and replied. Early verifies those interactions from your authenticated X session."
+    question: "What does Early prove?",
+    answer: "Early proves that your account interacted with content at a real time. On X, the first live provider verifies that you liked and replied to the original post."
   },
   {
-    question: "Am I claiming I predicted something would go viral?",
-    answer:
-      "No. Early proves when you were present, not what you predicted. A proof can matter because the moment later became culturally important, because a creator wants to recognize early supporters, or simply because being early is part of your internet history."
+    question: "What do I get from a proof?",
+    answer: "A proof becomes part of your Early profile. It can build discovery reputation and qualify you for creator access, brand campaigns, and rewards as those programs launch."
   },
   {
-    question: "What does Reclaim prove?",
-    answer:
-      "Reclaim uses zkTLS to verify authenticated facts from X without asking you to trust a screenshot or manually entered timestamp. Early turns that verified result into a portable proof."
+    question: "How is my privacy protected?",
+    answer: "Reclaim verifies the required fact from your authenticated session without giving Early your password. Zama can compute reputation or eligibility from encrypted proof history."
   },
   {
-    question: "Why does Early use Zama?",
-    answer:
-      "One public interaction is not the private part. Your complete discovery history is. Zama lets Early compute useful signals, such as campaign eligibility or an early-supporter tier, without publishing every interaction and timestamp."
+    question: "Is the Reclaim Verifier safe?",
+    answer: "The verification happens through Reclaim's verifier flow. Early receives the verified claim needed for the proof, not your full account session or browsing history."
   },
   {
-    question: "Is Early only for X?",
-    answer:
-      "No. X is the first working proof of concept. Early is being designed for discovery across YouTube, GitHub, Instagram, Spotify, and the other places where culture starts before the crowd arrives."
-  },
-  {
-    question: "What can creators, brands, and developers do with it?",
-    answer:
-      "Creators can recognize early supporters, brands can build campaigns around verified discovery, and developers can use normalized proof providers and private eligibility checks inside their own products."
+    question: "Which platforms are supported?",
+    answer: "X is live first. YouTube, Instagram, Spotify, and GitHub are the next provider surfaces planned for Early."
   }
 ] as const;
 
-const attentionSteps = [
-  { label: "The first 12", value: "12", dots: 12 },
-  { label: "The first 100", value: "100", dots: 20 },
-  { label: "The first 1K", value: "1K", dots: 28 },
-  { label: "The first 10K", value: "10K", dots: 36 },
-  { label: "The first 100K+", value: "100K+", dots: 46 }
+const howSteps = [
+  {
+    number: "01",
+    title: "Install Reclaim",
+    description: "Get Reclaim Verifier from the App Store or Play Store. It checks the fact you approve on your phone, without sharing your password with Early.",
+    visual: "reclaim"
+  },
+  {
+    number: "02",
+    title: "Choose a platform",
+    description: "Pick where your early moment happened and select what you want to prove. X is live first, with more providers on the way.",
+    visual: "providers"
+  },
+  {
+    number: "03",
+    title: "Keep the proof",
+    description: "Your verified moment joins your discovery profile, ready to become reputation, access, campaign eligibility, or rewards.",
+    visual: "value"
+  }
 ] as const;
 
-const platforms = [
-  { name: "X", status: "Live", tone: "green", icon: "https://cdn.simpleicons.org/x/75FF82" },
-  { name: "YouTube", status: "Next", tone: "coral", icon: "https://cdn.simpleicons.org/youtube/FF5C55" },
-  { name: "GitHub", status: "Planned", tone: "cyan", icon: "https://cdn.simpleicons.org/github/52D7DD" },
-  { name: "Spotify", status: "Planned", tone: "sun", icon: "https://cdn.simpleicons.org/spotify/F4C84A" },
-  { name: "Instagram", status: "Planned", tone: "cobalt", icon: "https://cdn.simpleicons.org/instagram/7790FF" }
-] as const;
+function PlatformIcon({ name, icon }: { name: string; icon: string }) {
+  return <img src={icon} alt={`${name} logo`} />;
+}
 
-function SignalMark({ compact = false }: { compact?: boolean }) {
+function HeroSignal() {
+  const bars = [18, 22, 19, 25, 29, 26, 34, 39, 44, 41, 50, 58, 62, 71, 78, 86];
+
   return (
-    <span className={clsx("signal-mark", compact && "signal-mark-compact")} aria-hidden="true">
-      {Array.from({ length: 12 }, (_, index) => (
-        <i key={index} style={{ transform: `rotate(${index * 30}deg)` }} />
+    <motion.div
+      className="vision-signal"
+      initial={{ opacity: 0.8, y: 28 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.85, delay: 0.18, ease: [0.16, 1, 0.3, 1] }}
+      aria-label="A visual showing one person arriving before wider attention"
+    >
+      <div className="signal-topline"><span>Discovery</span><strong>Attention</strong></div>
+      <div className="signal-chart" aria-hidden="true">
+        {bars.map((height, index) => <i key={`${height}-${index}`} style={{ height: `${height}%` }} />)}
+        <div className="signal-arrival"><span>You</span><b /></div>
+      </div>
+      <div className="signal-footer"><strong>Early</strong><span>before the crowd</span></div>
+    </motion.div>
+  );
+}
+
+function ReclaimPhone() {
+  return (
+    <div className="step-phone" aria-hidden="true">
+      <div className="phone-speaker" />
+      <div className="reclaim-app-icon">R</div>
+      <strong>Reclaim Verifier</strong>
+      <span>Verify on your device</span>
+      <div className="phone-action">Open app</div>
+    </div>
+  );
+}
+
+function ProviderMiniature() {
+  return (
+    <div className="mini-provider-list" aria-hidden="true">
+      {providers.slice(0, 3).map((provider) => (
+        <div key={provider.name}>
+          <PlatformIcon name={provider.name} icon={provider.icon} />
+          <strong>{provider.name}</strong>
+          <span>{provider.name === "X" ? "Verify" : "Soon"}</span>
+        </div>
       ))}
-    </span>
-  );
-}
-
-function FloraSprig({ position }: { position: "top" | "bottom" }) {
-  return (
-    <div className={clsx("flora", `flora-${position}`)} aria-hidden="true">
-      <img src="https://images.unsplash.com/photo-1593762365249-6f124edefa4e?auto=format&fit=crop&w=900&q=88" alt="" />
     </div>
   );
 }
 
-function AttentionField({ dots }: { dots: number }) {
+function ValuePreview() {
   return (
-    <span className="attention-field" aria-hidden="true">
-      <span className="attention-core" />
-      {Array.from({ length: dots }, (_, index) => {
-        const angle = (index / dots) * Math.PI * 2;
-        const ring = 30 + (index % 5) * 7;
-        const x = (50 + Math.cos(angle) * ring).toFixed(3);
-        const y = (50 + Math.sin(angle) * ring).toFixed(3);
-        return <i key={index} style={{ left: `${x}%`, top: `${y}%` }} />;
-      })}
-    </span>
+    <div className="value-preview" aria-hidden="true">
+      <div><span>Proof saved</span><strong>Verified</strong></div>
+      <div><span>Discovery profile</span><strong>Growing</strong></div>
+      <div><span>Creator access</span><strong>Eligible</strong></div>
+    </div>
   );
 }
 
-function HeroArchive() {
+function HowStepVisual({ visual }: { visual: (typeof howSteps)[number]["visual"] }) {
+  if (visual === "reclaim") return <ReclaimPhone />;
+  if (visual === "providers") return <ProviderMiniature />;
+  return <ValuePreview />;
+}
+
+function HowStepCard({
+  step,
+  mobile = false,
+  reduceMotion = false
+}: {
+  step: (typeof howSteps)[number];
+  mobile?: boolean;
+  reduceMotion?: boolean;
+}) {
+  const motionProps = mobile
+    ? {
+        initial: reduceMotion ? false : { opacity: 0, y: 52 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, amount: 0.28 },
+        transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] as const }
+      }
+    : {
+        initial: reduceMotion ? false : { opacity: 0, x: 110 },
+        animate: { opacity: 1, x: 0 },
+        exit: reduceMotion ? { opacity: 0 } : { opacity: 0, x: -70 },
+        transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const }
+      };
+
   return (
-    <div className="archive-stage culture-collage" aria-label="Real creator posts offering recognition to people who found them early">
-      <p className="culture-collage-label">Actual creator language. Verifiable with Early.</p>
+    <motion.article className="how-stage-card" {...motionProps}>
+      <div className="how-stage-copy">
+        <span>Step {step.number}</span>
+        <h3>{step.title}</h3>
+        <p>{step.description}</p>
+      </div>
+      <div className="how-stage-visual">
+        <HowStepVisual visual={step.visual} />
+      </div>
+    </motion.article>
+  );
+}
 
-      <figure className="creator-post creator-post-small">
-        <span>01</span>
-        <img src="/creator-small-artist.jpg" alt="Creator post saying you found a small artist before they blew up" />
-      </figure>
+function HowEarlyWorks() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const reduceMotion = Boolean(useReducedMotion());
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end end"]
+  });
 
-      <figure className="creator-post creator-post-art">
-        <span>02</span>
-        <img src="/creator-art-before-famous.jpg" alt="Artist post saying you saw their art before they were famous" />
-      </figure>
+  useMotionValueEvent(scrollYProgress, "change", (progress) => {
+    const nextStep = progress < 0.34 ? 0 : progress < 0.68 ? 1 : 2;
+    setActiveStep((current) => (current === nextStep ? current : nextStep));
+  });
 
-      <figure className="creator-post creator-post-main">
-        <span>03 · DAY ONE PROMISE</span>
-        <img src="/creator-day-one-backstage.jpg" alt="Creator promising a future backstage pass to Day One fans" />
-      </figure>
+  return (
+    <section ref={sectionRef} id="how-it-works" className="how-scroll-story">
+      <div className="how-story-sticky">
+        <div className="early-container how-story-grid">
+          <div className="how-story-intro">
+            <span>How Early works</span>
+            <h2>From a moment online to proof you can keep.</h2>
+            <div className="how-step-index" aria-label={`Step ${activeStep + 1} of ${howSteps.length}`}>
+              {howSteps.map((step, index) => (
+                <div className={clsx(index === activeStep && "is-active")} key={step.number}>
+                  <span>{step.number}</span>
+                  <strong>{step.title}</strong>
+                  {index === activeStep && <motion.i layoutId="how-step-marker" />}
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <figure className="creator-post creator-post-ticket">
-        <span>04</span>
-        <img src="/creator-free-ticket.jpg" alt="Band post offering early supporters a future concert ticket" />
-      </figure>
+          <div className="how-story-stage" aria-live="polite">
+            <AnimatePresence mode="wait">
+              <HowStepCard key={howSteps[activeStep].number} step={howSteps[activeStep]} reduceMotion={reduceMotion} />
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
 
-      <div className="culture-proof-thread" aria-hidden="true"><i /><i /></div>
+      <div className="early-container how-story-mobile">
+        <header>
+          <span>How Early works</span>
+          <h2>From a moment online to proof you can keep.</h2>
+        </header>
+        {howSteps.map((step) => <HowStepCard key={step.number} step={step} mobile reduceMotion={reduceMotion} />)}
+      </div>
+    </section>
+  );
+}
 
-      <article className="culture-receipt">
-        <SignalMark compact />
-        <div><small>EARLY RECEIPT · #0042</small><strong>You were here before the crowd.</strong></div>
-        <div><span>LIKED</span><span>REPLIED</span><small>VERIFIED</small></div>
-      </article>
-    </div>
+function ProviderFocus({ provider, onVerify }: { provider: ProviderName; onVerify: () => void }) {
+  const item = providers.find((entry) => entry.name === provider) ?? providers[0];
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        className={clsx("provider-focus", provider === "Instagram" && "instagram-focus")}
+        key={provider}
+        initial={{ opacity: 0.72, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.28 }}
+      >
+        <div className="provider-focus-copy">
+          <PlatformIcon name={item.name} icon={item.icon} />
+          <div>
+            <span>{provider === "X" ? "Live provider" : "Coming soon"}</span>
+            <h3>{provider === "X" ? "Prove you were there early on X." : provider === "Instagram" ? "Turn day-one support into proof." : `Bring your ${provider} history to Early.`}</h3>
+            {provider === "X" && <p>Like it. Reply to it. Verify it.</p>}
+          </div>
+        </div>
+
+        {provider === "X" && <button className="provider-verify" type="button" onClick={onVerify}>Verify with X</button>}
+
+        {provider === "Instagram" && (
+          <div className="instagram-proof-stack" aria-label="Examples of creators promising recognition to early fans">
+            <img src="/creator-day-one-backstage.jpg" alt="Creator offering future backstage passes to day-one fans" />
+            <img src="/creator-small-artist.jpg" alt="Creator asking fans to remember finding them before they grew" />
+            <img src="/creator-art-before-famous.jpg" alt="Artist sharing work before becoming widely known" />
+          </div>
+        )}
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
 export function LandingPage({ tweetUrl, setTweetUrl, onSubmit, proofError }: LandingPageProps) {
-  const landingRef = useRef<HTMLDivElement>(null);
+  const [lineIndex, setLineIndex] = useState(0);
+  const [selectedProvider, setSelectedProvider] = useState<ProviderName>("X");
+  const [showVerify, setShowVerify] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
 
   useEffect(() => {
-    if (!landingRef.current) return;
-
-    gsap.registerPlugin(ScrollTrigger);
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) return;
-
-    const context = gsap.context(() => {
-      gsap.fromTo(
-        ".landing-intro",
-        { opacity: 0, y: 28 },
-        { opacity: 1, y: 0, duration: 0.85, stagger: 0.11, ease: "power3.out" }
-      );
-      gsap.fromTo(
-        ".archive-stage",
-        { opacity: 0, x: 36, scale: 0.97 },
-        { opacity: 1, x: 0, scale: 1, duration: 1, delay: 0.32, ease: "power3.out" }
-      );
-      gsap.fromTo(
-        ".attention-step",
-        { opacity: 0.22, y: 28, scale: 0.9 },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          stagger: 0.12,
-          ease: "power2.out",
-          scrollTrigger: { trigger: ".attention-journey", start: "top 72%", end: "bottom 65%", scrub: 0.5 }
-        }
-      );
-      gsap.fromTo(
-        ".attention-progress",
-        { scaleX: 0 },
-        {
-          scaleX: 1,
-          ease: "none",
-          scrollTrigger: { trigger: ".attention-journey", start: "top 78%", end: "bottom 58%", scrub: 0.5 }
-        }
-      );
-      gsap.utils.toArray<HTMLElement>(".scroll-reveal").forEach((element) => {
-        gsap.fromTo(
-          element,
-          { opacity: 0, y: 42 },
-          { opacity: 1, y: 0, duration: 0.8, ease: "power3.out", scrollTrigger: { trigger: element, start: "top 84%", once: true } }
-        );
-      });
-      gsap.to(".flora-top", { rotation: 1.5, duration: 4.6, yoyo: true, repeat: -1, ease: "sine.inOut", transformOrigin: "center bottom" });
-      gsap.to(".flora-bottom", { rotation: -1.5, duration: 5.2, yoyo: true, repeat: -1, ease: "sine.inOut", transformOrigin: "center bottom" });
-    }, landingRef);
-
-    return () => context.revert();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const interval = window.setInterval(() => setLineIndex((current) => (current + 1) % rotatingLines.length), 2800);
+    return () => window.clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (!showVerify) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowVerify(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showVerify]);
+
   return (
-    <div ref={landingRef} className="landing-world">
-      <FloraSprig position="top" />
-
-      <section id="prove" className="landing-hero">
-        <div className="landing-shell hero-grid">
-          <div className="hero-copy">
-            <div className="landing-intro live-label"><span className="live-dot" />Live on X</div>
-            <h1 className="landing-intro">Being early used to be a story. <span>Now it&apos;s proof.</span></h1>
-            <p className="landing-intro hero-description">
-              Early turns what you discovered before the crowd into verifiable proof. Start with an X post you liked and replied to.
-            </p>
-
-            <form onSubmit={onSubmit} className="landing-intro proof-entry" noValidate>
-              <label htmlFor="x-post-url">Paste the original X post URL</label>
-              <div className={clsx("proof-entry-row", proofError && "proof-entry-error") }>
-                <input
-                  id="x-post-url"
-                  type="url"
-                  inputMode="url"
-                  autoComplete="url"
-                  value={tweetUrl}
-                  onChange={(event) => setTweetUrl(event.target.value)}
-                  placeholder="https://x.com/creator/status/..."
-                  aria-describedby={proofError ? "proof-entry-error" : "proof-entry-help"}
-                  aria-invalid={Boolean(proofError)}
-                />
-                <button type="submit" disabled={!tweetUrl.trim()}>
-                  Create proof <span aria-hidden="true">→</span>
-                </button>
-              </div>
-              <p id="proof-entry-help">Your account must have both liked and replied to the post.</p>
-              {proofError && <p id="proof-entry-error" role="alert" className="form-error">{proofError}</p>}
-            </form>
-          </div>
-
-          <HeroArchive />
-        </div>
-
-        <a href="#story" className="scroll-cue"><SignalMark compact /> Scroll to witness <span aria-hidden="true">↓</span></a>
-      </section>
-
-      <section id="story" className="attention-section">
-        <div className="landing-shell">
-          <div className="section-intro scroll-reveal">
-            <p className="section-kicker">Proof of discovery</p>
-            <h2>Before it became obvious.</h2>
-            <p>Every cultural moment starts small. Early preserves your authenticated place near the beginning, then lets the world catch up.</p>
-          </div>
-
-          <div className="attention-journey" aria-label="An early post growing from 12 interactions to more than 100,000">
-            {attentionSteps.map((step, index) => (
-              <div className="attention-step" key={step.value}>
-                <small>{index === 0 ? "The moment" : `+${index === 1 ? "1 day" : index === 2 ? "3 days" : index === 3 ? "1 week" : "2 weeks"}`}</small>
-                <AttentionField dots={step.dots} />
-                <strong>{step.value}</strong>
-                <span>{step.label}</span>
-              </div>
-            ))}
-            <div className="attention-rule"><span className="attention-progress" /></div>
-            <div className="attention-caption"><span>Authenticated memory</span><span>Portable proof</span></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="proof-story-section">
-        <div className="landing-shell proof-story-grid">
-          <div className="proof-story-copy scroll-reveal">
-            <p className="section-kicker">Memory becomes proof</p>
-            <h2>A screenshot is a claim. Early makes it proof.</h2>
-            <p>Early verifies the interaction through your authenticated platform session, then normalizes it into a receipt that can travel beyond the original feed.</p>
-          </div>
-          <div className="proof-story-flow scroll-reveal">
-            <div className="flow-source"><span className="artifact-avatar artifact-avatar-coral">X</span><strong>Liked + replied</strong><small>Authenticated activity</small></div>
-            <span className="flow-arrow" aria-hidden="true">→</span>
-            <div className="flow-source flow-reclaim"><strong>Reclaim</strong><small>zkTLS proof</small></div>
-            <span className="flow-arrow" aria-hidden="true">→</span>
-            <div className="mini-ticket"><SignalMark compact /><strong>Early receipt</strong><small>Portable proof</small></div>
-          </div>
-        </div>
-      </section>
-
-      <section className="private-section">
-        <div className="landing-shell private-grid">
-          <div className="private-vault scroll-reveal" aria-label="Private discovery history producing a campaign eligibility result">
-            <div className="vault-orbit orbit-one">X · 08:37</div>
-            <div className="vault-orbit orbit-two">YT · #7</div>
-            <div className="vault-orbit orbit-three">GH · first star</div>
-            <div className="vault-core"><SignalMark /><small>ENCRYPTED HISTORY</small><strong>Private by default</strong></div>
-            <div className="vault-result"><span>Campaign check</span><strong>Eligible</strong></div>
-          </div>
-          <div className="private-copy scroll-reveal">
-            <p className="section-kicker">One proof becomes reputation</p>
-            <h2>Your discovery history should be useful, not exposed.</h2>
-            <p>A public reply may already exist. The sensitive thing is the full pattern: everywhere you showed up early, every timestamp, and what that says about you.</p>
-            <p>Zama lets Early compute private eligibility and reputation signals while revealing only the result a campaign or product needs.</p>
-            <div className="technology-line"><span>Private computation with</span><img className="technology-logo technology-logo-zama" src="https://cdn.prod.website-files.com/61bc21e3a843412266a08eb3/68417dce00c33fce2253fc6e_Untitled%20design%20(1).svg" alt="Zama" /></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="for-creators" className="audiences-section">
-        <div className="landing-shell">
-          <div className="section-intro audience-heading scroll-reveal">
-            <p className="section-kicker">What proof unlocks</p>
-            <h2>Cool on its own. Powerful when someone recognizes it.</h2>
-          </div>
-
-          <article className="audience-scene audience-fans scroll-reveal">
-            <div><span className="audience-index">For tastemakers</span><h3>Turn internet instinct into cultural reputation.</h3><p>Keep proof of the artists, ideas, videos, and communities you found before broader attention arrived.</p></div>
-            <div className="receipt-stack" aria-hidden="true"><span>first reply</span><span>early listener</span><span>before the crowd</span></div>
-          </article>
-
-          <article className="audience-scene audience-creators scroll-reveal">
-            <div className="supporter-ring" aria-hidden="true"><span>12</span><i /><i /><i /><i /><i /></div>
-            <div><span className="audience-index">For creators</span><h3>Know who showed up before the numbers did.</h3><p>Recognize early supporters with access, loyalty, rewards, or a place in the story without relying on screenshots and memory.</p></div>
-          </article>
-
-          <article id="for-brands" className="audience-scene audience-brands scroll-reveal">
-            <div><span className="audience-index">For brands</span><h3>Reward discovery without buying another attention metric.</h3><p>Build campaigns around verified early activity and privately check eligibility without collecting a person&apos;s complete history.</p></div>
-            <div className="campaign-pass" aria-label="Example private campaign result"><small>EARLY CAMPAIGN</small><span>Found before 10K</span><strong>ELIGIBLE</strong></div>
-          </article>
-        </div>
-      </section>
-
-      <section className="platform-section">
-        <div className="landing-shell">
-          <div className="section-intro platform-heading scroll-reveal">
-            <p className="section-kicker">X is the first proof, not the whole idea</p>
-            <h2>Discovery happens everywhere.</h2>
-          </div>
-          <div className="platform-line scroll-reveal">
-            {platforms.map((platform) => (
-              <div key={platform.name} className={clsx("platform-item", `platform-${platform.tone}`)}>
-                <span className="platform-symbol"><img src={platform.icon} alt="" /></span>
-                <strong>{platform.name}</strong>
-                <small>{platform.status}</small>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="developers" className="developer-section">
-        <div className="landing-shell developer-grid">
-          <div className="developer-copy scroll-reveal">
-            <p className="section-kicker">Infrastructure for builders</p>
-            <h2>Build with the proof layer, not every platform&apos;s plumbing.</h2>
-            <p>Early&apos;s provider layer is designed to normalize authenticated discovery claims across platforms, verify them once, and expose privacy-preserving eligibility to other products.</p>
-            <div className="developer-capabilities">
-              <span>Provider registry</span><span>Normalized claims</span><span>Verification API</span><span>Private eligibility</span><span>Campaign webhooks</span>
+    <div className="distilled-landing">
+      <section id="top" className="vision-hero">
+        <div className="early-container vision-grid">
+          <div className="vision-copy">
+            <h1>Being early used to be a story.</h1>
+            <div className="rotating-line" aria-live="polite">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={rotatingLines[lineIndex]}
+                  initial={{ opacity: 0, y: 18 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -14 }}
+                  transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  {rotatingLines[lineIndex]}
+                </motion.span>
+              </AnimatePresence>
             </div>
+            <p>Verify what you found first. Turn it into reputation, access, and rewards.</p>
+            <a className="vision-cta" href="#providers">Explore providers</a>
           </div>
-          <div className="code-artifact scroll-reveal" aria-label="Conceptual Early developer interface">
-            <div className="code-title"><SignalMark compact /><span>Developer preview</span></div>
-            <pre><code><span className="code-muted">// Verify discovery without rebuilding the provider</span>{"\n"}<span className="code-coral">const</span> proof = <span className="code-coral">await</span> early.verify({"{"}{"\n"}  provider: <span className="code-sun">&quot;x&quot;</span>,{"\n"}  claim: <span className="code-sun">&quot;liked_and_replied&quot;</span>,{"\n"}  url{"\n"}{"}"});{"\n\n"}<span className="code-muted">// Reveal the result, not the full history</span>{"\n"}<span className="code-coral">const</span> eligible = <span className="code-coral">await</span> early.checkEligibility(proof);</code></pre>
+          <HeroSignal />
+        </div>
+      </section>
+
+      <section className="provider-marquee" aria-label="Early provider network">
+        <p>Proof of discovery across the internet</p>
+        <div className="marquee-window">
+          <div className="marquee-track">
+            {[...providers, ...providers].map((provider, index) => (
+              <div key={`${provider.name}-${index}`} aria-hidden={index >= providers.length}>
+                <PlatformIcon name={provider.name} icon={provider.icon} />
+                <span>{provider.name}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="protocol-section">
-        <div className="landing-shell protocol-grid">
-          <div className="scroll-reveal"><p className="section-kicker">The trust stack</p><h2>Proof from the platform. Privacy for the person.</h2></div>
-          <div className="protocol-parts scroll-reveal">
-            <div><span className="protocol-brand"><img className="protocol-logo protocol-logo-reclaim" src="https://www.reclaimprotocol.org/reclaim-logo.png" alt="Reclaim Protocol" /><strong className="reclaim-wordmark">Reclaim</strong></span><p>Uses zkTLS to verify authenticated platform activity without trusting a screenshot.</p></div>
-            <span className="protocol-join" aria-hidden="true">+</span>
-            <div><span className="protocol-brand"><img className="protocol-logo protocol-logo-zama" src="https://cdn.prod.website-files.com/61bc21e3a843412266a08eb3/68417dce00c33fce2253fc6e_Untitled%20design%20(1).svg" alt="Zama" /></span><p>Uses FHE to compute useful reputation and eligibility while the underlying history stays encrypted.</p></div>
+      <HowEarlyWorks />
+
+      <section id="providers" className="distilled-section providers-section">
+        <div className="early-container">
+          <header className="distilled-heading centered-distilled-heading">
+            <h2>Choose a provider</h2>
+            <p>X is live. More of the internet is next.</p>
+          </header>
+
+          <motion.div
+            className="provider-picker"
+            role="tablist"
+            aria-label="Proof providers"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.45 }}
+            variants={{
+              hidden: {},
+              visible: { transition: { staggerChildren: 0.075 } }
+            }}
+          >
+            {providers.map((provider) => (
+              <motion.button
+                key={provider.name}
+                type="button"
+                role="tab"
+                aria-selected={selectedProvider === provider.name}
+                className={clsx(selectedProvider === provider.name && "is-selected")}
+                onClick={() => setSelectedProvider(provider.name)}
+                variants={{
+                  hidden: { opacity: 0, y: 24 },
+                  visible: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } }
+                }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <PlatformIcon name={provider.name} icon={provider.icon} />
+                <strong>{provider.name}</strong>
+                <span>{provider.status}</span>
+                {selectedProvider === provider.name && <motion.i className="provider-active-marker" layoutId="provider-active-marker" />}
+              </motion.button>
+            ))}
+          </motion.div>
+
+          <ProviderFocus provider={selectedProvider} onVerify={() => setShowVerify(true)} />
+        </div>
+      </section>
+
+      <section id="enterprise" className="enterprise-story">
+        <div className="early-container">
+          <motion.header
+            className="enterprise-intro"
+            initial={{ opacity: 0, y: 42 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <span>For creators and brands</span>
+            <h2>Turn early belief into a relationship.</h2>
+            <p>Early turns verified discovery into a high-signal community you can recognize, reward, and grow with.</p>
+          </motion.header>
+
+          <div className="enterprise-audiences">
+            <motion.article
+              initial={{ opacity: 0, x: -42 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.35 }}
+              transition={{ duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <span>Creators</span>
+              <h3>Know your day ones.</h3>
+              <p>Recognize the people who supported your work before the crowd, then offer access, tickets, drops, or a place in the story.</p>
+              <ul><li>Early-fan recognition</li><li>Access and rewards</li><li>Portable community history</li></ul>
+            </motion.article>
+            <motion.article
+              initial={{ opacity: 0, x: 42 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, amount: 0.35 }}
+              transition={{ duration: 0.65, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <span>Brands</span>
+              <h3>Reward real attention.</h3>
+              <p>Build campaigns around verified early adopters instead of screenshots, self-reported loyalty, or follower counts.</p>
+              <ul><li>Private eligibility</li><li>Proof-backed campaigns</li><li>High-signal loyalty</li></ul>
+            </motion.article>
+          </div>
+
+          <div className="enterprise-capabilities">
+            <header><span>What Early makes possible</span></header>
+            <div>
+              <article><strong>Verified timing</strong><p>Know that an interaction happened, and when.</p></article>
+              <article><strong>Private qualification</strong><p>Check eligibility without exposing a person&apos;s full history.</p></article>
+              <article><strong>Portable reputation</strong><p>Let proof travel beyond the platform where it began.</p></article>
+            </div>
+            <a href="mailto:hello@early.xyz">Talk to Early</a>
+          </div>
+
+          <motion.article
+            id="developers"
+            className="developer-row"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.5 }}
+          >
+            <span>Developers</span>
+            <h2>One proof layer. Every platform.</h2>
+            <a href="#providers">Explore providers</a>
+          </motion.article>
+        </div>
+      </section>
+
+      <section id="about" className="privacy-story">
+        <div className="early-container privacy-story-grid">
+          <header>
+            <span>Private by design</span>
+            <h2>Your login stays with the platform.</h2>
+            <p>Reclaim returns only the fact you approved. Early never receives your password, cookies, or full activity history.</p>
+          </header>
+
+          <motion.div
+            className="privacy-proof-flow"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.45 }}
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.14 } } }}
+          >
+            {[
+              ["01", "You approve a fact"],
+              ["02", "Reclaim verifies it"],
+              ["03", "Early receives proof"],
+              ["04", "Zama computes privately"]
+            ].map(([number, label], index) => (
+              <motion.div key={number} variants={{ hidden: { opacity: 0, x: 34 }, visible: { opacity: 1, x: 0, transition: { duration: 0.5 } } }}>
+                <span>{number}</span><strong>{label}</strong>
+                {index < 3 && <i aria-hidden="true" />}
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <div className="privacy-technology">
+            <div><img src="https://www.reclaimprotocol.org/reclaim-logo.png" alt="Reclaim Protocol" /><span>zkTLS verification</span></div>
+            <div><strong>ZAMA</strong><span>Encrypted computation</span></div>
           </div>
         </div>
       </section>
 
-      <section className="faq-section">
-        <FloraSprig position="bottom" />
-        <div className="landing-shell faq-grid">
-          <div className="faq-heading scroll-reveal"><p className="section-kicker">Before you paste</p><h2>The useful questions.</h2><p>Everything you need to understand the first proof and the larger protocol.</p></div>
-          <div className="faq-list">
-            {faqItems.map((item, index) => {
-              const isOpen = openFaq === index;
+      <section id="faq" className="distilled-section distilled-faq">
+        <div className="early-container distilled-faq-grid">
+          <header><h2>Frequently asked questions</h2></header>
+          <div className="distilled-faq-list">
+            {faqs.map((faq, index) => {
+              const open = openFaq === index;
               return (
-                <motion.div key={item.question} layout className={clsx("faq-item", isOpen && "faq-item-open")}>
-                  <button type="button" onClick={() => setOpenFaq(isOpen ? -1 : index)} aria-expanded={isOpen} aria-controls={`faq-answer-${index}`}>
-                    <span>{item.question}</span><span className="faq-toggle" aria-hidden="true">{isOpen ? "−" : "+"}</span>
+                <div className={clsx("distilled-faq-item", open && "is-open")} key={faq.question}>
+                  <button type="button" onClick={() => setOpenFaq(open ? -1 : index)} aria-expanded={open}>
+                    <span>{faq.question}</span><span aria-hidden="true">{open ? "-" : "+"}</span>
                   </button>
                   <AnimatePresence initial={false}>
-                    {isOpen && (
-                      <motion.div id={`faq-answer-${index}`} initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }}>
-                        <p>{item.answer}</p>
+                    {open && (
+                      <motion.div
+                        initial={{ gridTemplateRows: "0fr", opacity: 0 }}
+                        animate={{ gridTemplateRows: "1fr", opacity: 1 }}
+                        exit={{ gridTemplateRows: "0fr", opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                      >
+                        <p>{faq.answer}</p>
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </motion.div>
+                </div>
               );
             })}
           </div>
         </div>
       </section>
 
-      <footer className="landing-footer">
-        <div className="landing-shell"><div className="footer-brand"><SignalMark /><strong>Early</strong></div><p>&copy; 2026 Early. Proof of discovery for the internet.</p><a href="#prove">Create your first proof <span aria-hidden="true">↑</span></a></div>
+      <footer className="distilled-footer">
+        <div className="early-container">
+          <div><span className="wordmark-symbol"><i /><i /></span><strong>Early</strong><p>Proof of discovery for the internet.</p></div>
+          <nav aria-label="Footer navigation"><a href="#providers">Providers</a><a href="#enterprise">Enterprise</a><a href="#developers">Developers</a><a href="#faq">FAQ</a></nav>
+          <small>2026 Early</small>
+        </div>
       </footer>
+
+      <AnimatePresence>
+        {showVerify && (
+          <motion.div className="verify-modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={() => setShowVerify(false)}>
+            <motion.div
+              className="verify-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="verify-modal-title"
+              initial={{ opacity: 0, y: 24, scale: 0.985 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 18, scale: 0.985 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <button className="verify-modal-close" type="button" aria-label="Close verification" onClick={() => setShowVerify(false)}>&times;</button>
+              <div className="verify-modal-icon"><PlatformIcon name="X" icon={providers[0].icon} /></div>
+              <h2 id="verify-modal-title">Verify with X</h2>
+              <p>Paste the original post you liked and replied to.</p>
+              <form onSubmit={onSubmit} noValidate>
+                <label htmlFor="provider-x-url">X post URL</label>
+                <input
+                  id="provider-x-url"
+                  type="url"
+                  value={tweetUrl}
+                  onChange={(event) => setTweetUrl(event.target.value)}
+                  placeholder="https://x.com/creator/status/..."
+                  autoComplete="url"
+                  inputMode="url"
+                  aria-invalid={Boolean(proofError)}
+                  autoFocus
+                />
+                {proofError && <span className="verify-modal-error" role="alert">{proofError}</span>}
+                <button type="submit" disabled={!tweetUrl.trim()}>Continue to Reclaim</button>
+              </form>
+              <small>Early never asks for your X password.</small>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
