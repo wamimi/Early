@@ -1,3 +1,4 @@
+-- Archived V1 migration. Do not apply to a new Early V2 deployment.
 create table if not exists public.reclaim_proof_sessions (
   session_id text primary key,
   tweet_id text not null,
