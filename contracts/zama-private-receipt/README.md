@@ -1,34 +1,18 @@
-# Early Zama Private Taste
+# Early Private Discovery Vault
 
-This workspace contains the FHEVM contract for Early's private taste computation layer.
+The FHEVM vault stores encrypted earliest-discovery time and qualifying
+interaction count under opaque vault identifiers. Public campaign rules evaluate
+the encrypted history and make only eligibility publicly decryptable.
 
-Reclaim proves that a user endorsed an X post. Stellar verifies and receipts the public commitment. This contract receives an encrypted early-delta value in minutes, computes a taste tier with Zama, and reveals only the tier/eligibility result without publishing the exact timing or X identity on-chain.
-
-## Install
+The trusted relayer can register only inputs carrying a valid attestor EIP-712
+signature. The signature binds ciphertext, proof commitment, subject, opaque
+owner, nonce, expiry, chain, and contract.
 
 ```bash
-cd contracts/zama-private-receipt
 pnpm install
-```
-
-## Test
-
-```bash
 pnpm test
-```
-
-## Deploy To Sepolia
-
-```bash
-npx hardhat vars set MNEMONIC
-npx hardhat vars set INFURA_API_KEY
 pnpm deploy:sepolia
 ```
 
-After deployment, copy the contract address into the app:
-
-```bash
-NEXT_PUBLIC_ZAMA_CONTRACT_ADDRESS=
-```
-
-The contract stores only commitment-style metadata and encrypted handles. It does not store raw X handles, raw reply timestamps, or full Reclaim proof payloads.
+Set `EARLY_ATTESTOR_ADDRESS` and `EARLY_RELAYER_ADDRESS` to separately managed
+KMS-backed identities before deployment.
