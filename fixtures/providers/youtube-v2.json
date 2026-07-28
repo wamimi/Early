@@ -1,0 +1,19 @@
+{
+  "schema": "early.provider/youtube/v2",
+  "context": {
+    "contextAddress": "0x1111111111111111111111111111111111111111",
+    "schemaVersion": "2",
+    "platform": "youtube",
+    "providerConfigHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "sessionNullifier": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "subjectId": "dQw4w9WgXcQ"
+  },
+  "extractedParameters": {
+    "authenticatedAccountId": "opaque-account-reference",
+    "commented": "true",
+    "engaged": "true",
+    "commentId": "UgexampleCommentId",
+    "videoId": "dQw4w9WgXcQ",
+    "commentTimestamp": "1767225600"
+  }
+}

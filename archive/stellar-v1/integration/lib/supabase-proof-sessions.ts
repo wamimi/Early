@@ -22,6 +22,21 @@ export type ProofSession = {
   stellar_verifier_status: string | null;
   stellar_verifier_created_at: string | null;
   stellar_verifier_error_message: string | null;
+  zama_wallet_address: string | null;
+  zama_network: string | null;
+  zama_contract_address: string | null;
+  zama_tx_hash: string | null;
+  zama_status: string | null;
+  zama_encrypted_timestamp_handle: string | null;
+  zama_encrypted_early_delta_handle: string | null;
+  zama_tier_handle: string | null;
+  zama_public_tier: number | null;
+  zama_public_tier_label: string | null;
+  zama_campaign_window_minutes: number | null;
+  zama_eligibility_handle: string | null;
+  zama_public_eligible: boolean | null;
+  zama_created_at: string | null;
+  zama_error_message: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
@@ -58,6 +73,24 @@ export type RecordStellarVerifierInput = {
   contractId?: string | null;
   txHash?: string | null;
   status: "prepared" | "pending" | "verified" | "failed";
+  errorMessage?: string | null;
+};
+
+export type RecordZamaReceiptInput = {
+  sessionId: string;
+  walletAddress: string;
+  network: string;
+  contractAddress?: string | null;
+  txHash?: string | null;
+  status: "prepared" | "pending" | "sealed" | "failed";
+  encryptedTimestampHandle?: string | null;
+  encryptedEarlyDeltaHandle?: string | null;
+  tierHandle?: string | null;
+  publicTier?: number | null;
+  publicTierLabel?: string | null;
+  campaignWindowMinutes?: number | null;
+  eligibilityHandle?: string | null;
+  publicEligible?: boolean | null;
   errorMessage?: string | null;
 };
 
@@ -165,6 +198,21 @@ export async function getProofSession(sessionId: string) {
     "stellar_verifier_status",
     "stellar_verifier_created_at",
     "stellar_verifier_error_message",
+    "zama_wallet_address",
+    "zama_network",
+    "zama_contract_address",
+    "zama_tx_hash",
+    "zama_status",
+    "zama_encrypted_timestamp_handle",
+    "zama_encrypted_early_delta_handle",
+    "zama_tier_handle",
+    "zama_public_tier",
+    "zama_public_tier_label",
+    "zama_campaign_window_minutes",
+    "zama_eligibility_handle",
+    "zama_public_eligible",
+    "zama_created_at",
+    "zama_error_message",
     "created_at",
     "updated_at",
     "completed_at"
@@ -191,6 +239,65 @@ export async function recordStellarReceipt(input: RecordStellarReceiptInput) {
       stellar_receipt_status: input.status,
       stellar_receipt_created_at: new Date().toISOString()
     })
+  });
+  const rows = await readSupabaseJson<ProofSession[]>(response);
+
+  if (rows.length === 0) {
+    throw new Error(`No Reclaim proof session found for ${input.sessionId}.`);
+  }
+
+  return rows[0];
+}
+
+export async function recordZamaReceipt(input: RecordZamaReceiptInput) {
+  const body: Record<string, unknown> = {
+    zama_wallet_address: input.walletAddress,
+    zama_network: input.network,
+    zama_contract_address: input.contractAddress ?? null,
+    zama_tx_hash: input.txHash ?? null,
+    zama_status: input.status,
+    zama_created_at: new Date().toISOString(),
+    zama_error_message: input.errorMessage ?? null
+  };
+
+  if (input.encryptedTimestampHandle !== undefined) {
+    body.zama_encrypted_timestamp_handle = input.encryptedTimestampHandle;
+  }
+
+  if (input.encryptedEarlyDeltaHandle !== undefined) {
+    body.zama_encrypted_early_delta_handle = input.encryptedEarlyDeltaHandle;
+  }
+
+  if (input.tierHandle !== undefined) {
+    body.zama_tier_handle = input.tierHandle;
+  }
+
+  if (input.publicTier !== undefined) {
+    body.zama_public_tier = input.publicTier;
+  }
+
+  if (input.publicTierLabel !== undefined) {
+    body.zama_public_tier_label = input.publicTierLabel;
+  }
+
+  if (input.campaignWindowMinutes !== undefined) {
+    body.zama_campaign_window_minutes = input.campaignWindowMinutes;
+  }
+
+  if (input.eligibilityHandle !== undefined) {
+    body.zama_eligibility_handle = input.eligibilityHandle;
+  }
+
+  if (input.publicEligible !== undefined) {
+    body.zama_public_eligible = input.publicEligible;
+  }
+
+  const response = await fetch(`${getSupabaseBaseUrl()}?session_id=eq.${encodeURIComponent(input.sessionId)}`, {
+    method: "PATCH",
+    headers: getSupabaseHeaders({
+      Prefer: "return=representation"
+    }),
+    body: JSON.stringify(body)
   });
   const rows = await readSupabaseJson<ProofSession[]>(response);
 

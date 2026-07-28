@@ -1,29 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertAllowedOrigin } from "@/lib/origins";
+import { authenticatePrivyRequest } from "@/lib/privy-server";
 import { createReclaimProofRequest } from "@/lib/reclaim";
-import { createProofSession } from "@/lib/supabase-proof-sessions";
+import type { DiscoveryPlatform } from "@/lib/proof-model";
+import { createProofSession } from "@/lib/v2-store";
 
 export const runtime = "nodejs";
 
+function statusFor(message: string) {
+  if (message.includes("access token")) return 401;
+  if (message.includes("not linked") || message.includes("origin")) return 403;
+  if (
+    message.startsWith("Paste") ||
+    message.includes("required") ||
+    message.includes("platform")
+  ) {
+    return 400;
+  }
+  return 500;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { tweetUrl?: unknown };
+    assertAllowedOrigin(request.headers.get("origin"));
+    const body = (await request.json()) as {
+      platform?: unknown;
+      subjectUrl?: unknown;
+      walletAddress?: unknown;
+    };
+    const platform = body.platform as DiscoveryPlatform;
 
-    if (typeof body.tweetUrl !== "string") {
-      return NextResponse.json({ error: "tweetUrl is required." }, { status: 400 });
+    if (platform !== "x" && platform !== "youtube") {
+      throw new Error("A supported platform is required.");
+    }
+    if (typeof body.subjectUrl !== "string") {
+      throw new Error("subjectUrl is required.");
+    }
+    if (typeof body.walletAddress !== "string") {
+      throw new Error("walletAddress is required.");
     }
 
-    const origin = request.headers.get("origin") ?? undefined;
+    const user = await authenticatePrivyRequest(request, body.walletAddress);
     const proofRequest = await createReclaimProofRequest({
-      tweetUrl: body.tweetUrl,
-      origin
+      platform,
+      subjectUrl: body.subjectUrl,
+      walletAddress: user.wallet,
     });
 
     await createProofSession({
       sessionId: proofRequest.sessionId,
-      tweetId: proofRequest.tweetId,
-      tweetUrl: body.tweetUrl,
+      privyUserId: user.user_id,
+      walletAddress: user.wallet,
+      platform,
+      subjectId: proofRequest.subjectId,
+      subjectUrl: proofRequest.subjectUrl,
+      provider: proofRequest.provider,
+      sessionNullifier: proofRequest.sessionNullifier,
       requestUrl: proofRequest.requestUrl,
-      statusUrl: proofRequest.statusUrl
+      statusUrl: proofRequest.statusUrl,
     });
 
     return NextResponse.json({
@@ -31,10 +65,14 @@ export async function POST(request: NextRequest) {
       requestUrl: proofRequest.requestUrl,
       mobileRequestUrl: proofRequest.mobileRequestUrl,
       statusUrl: proofRequest.statusUrl,
-      tweetId: proofRequest.tweetId
+      subjectId: proofRequest.subjectId,
+      platform,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to start Reclaim verification.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to start Reclaim verification.";
+    return NextResponse.json({ error: message }, { status: statusFor(message) });
   }
 }

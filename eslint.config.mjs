@@ -5,7 +5,19 @@ const eslintConfig = [
   ...nextVitals,
   ...nextTypescript,
   {
-    ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"]
+    ignores: [
+      ".agents/**",
+      ".codex/**",
+      ".next/**",
+      "archive/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "contracts/**",
+      "contracts/**/artifacts/**",
+      "contracts/**/cache/**",
+      "contracts/**/typechain-types/**"
+    ]
   }
 ];
 

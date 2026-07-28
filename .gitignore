@@ -11,6 +11,13 @@ build/
 dist/
 target/
 test_snapshots/
+artifacts/
+cache/
+coverage/
+playwright-report/
+test-results/
+typechain-types/
+fhevmTemp/
 
 # Environment
 .env

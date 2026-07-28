@@ -1,0 +1,25 @@
+{
+  "name": "early-zama-private-receipt",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "test": "hardhat test"
+  },
+  "dependencies": {
+    "@fhevm/solidity": "0.11.1",
+    "encrypted-types": "0.0.4"
+  },
+  "devDependencies": {
+    "@fhevm/hardhat-plugin": "0.4.2",
+    "@fhevm/host-contracts": "0.10.0",
+    "@fhevm/mock-utils": "0.4.2",
+    "@nomicfoundation/hardhat-ethers": "^3.1.0",
+    "@nomicfoundation/hardhat-toolbox": "^6.0.0",
+    "@types/node": "^26.0.1",
+    "@zama-fhe/relayer-sdk": "0.4.1",
+    "hardhat": "^2.26.3",
+    "typescript": "^6.0.3"
+  }
+}

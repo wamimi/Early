@@ -1,3 +1,4 @@
+-- Archived V1 migration. Do not apply to a new Early V2 deployment.
 create table if not exists public.reclaim_proof_sessions (
   session_id text primary key,
   tweet_id text not null,
@@ -26,6 +27,24 @@ create table if not exists public.reclaim_proof_sessions (
   ),
   stellar_verifier_created_at timestamptz,
   stellar_verifier_error_message text,
+  zama_wallet_address text,
+  zama_network text,
+  zama_contract_address text,
+  zama_tx_hash text,
+  zama_status text check (
+    zama_status is null
+    or zama_status in ('prepared', 'pending', 'sealed', 'failed')
+  ),
+  zama_encrypted_timestamp_handle text,
+  zama_encrypted_early_delta_handle text,
+  zama_tier_handle text,
+  zama_public_tier integer,
+  zama_public_tier_label text,
+  zama_campaign_window_minutes integer,
+  zama_eligibility_handle text,
+  zama_public_eligible boolean,
+  zama_created_at timestamptz,
+  zama_error_message text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   completed_at timestamptz
@@ -45,7 +64,22 @@ alter table public.reclaim_proof_sessions
   add column if not exists stellar_verifier_tx_hash text,
   add column if not exists stellar_verifier_status text,
   add column if not exists stellar_verifier_created_at timestamptz,
-  add column if not exists stellar_verifier_error_message text;
+  add column if not exists stellar_verifier_error_message text,
+  add column if not exists zama_wallet_address text,
+  add column if not exists zama_network text,
+  add column if not exists zama_contract_address text,
+  add column if not exists zama_tx_hash text,
+  add column if not exists zama_status text,
+  add column if not exists zama_encrypted_timestamp_handle text,
+  add column if not exists zama_encrypted_early_delta_handle text,
+  add column if not exists zama_tier_handle text,
+  add column if not exists zama_public_tier integer,
+  add column if not exists zama_public_tier_label text,
+  add column if not exists zama_campaign_window_minutes integer,
+  add column if not exists zama_eligibility_handle text,
+  add column if not exists zama_public_eligible boolean,
+  add column if not exists zama_created_at timestamptz,
+  add column if not exists zama_error_message text;
 
 do $$
 begin
@@ -59,6 +93,23 @@ begin
       check (
         stellar_verifier_status is null
         or stellar_verifier_status in ('prepared', 'pending', 'verified', 'failed')
+      );
+  end if;
+end;
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'reclaim_proof_sessions_zama_status_check'
+  ) then
+    alter table public.reclaim_proof_sessions
+      add constraint reclaim_proof_sessions_zama_status_check
+      check (
+        zama_status is null
+        or zama_status in ('prepared', 'pending', 'sealed', 'failed')
       );
   end if;
 end;

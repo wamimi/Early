@@ -1,0 +1,19 @@
+{
+  "schema": "early.provider/x/v2",
+  "context": {
+    "contextAddress": "0x1111111111111111111111111111111111111111",
+    "schemaVersion": "2",
+    "platform": "x",
+    "providerConfigHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sessionNullifier": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "subjectId": "1912345678901234567"
+  },
+  "extractedParameters": {
+    "authenticatedAccountId": "opaque-account-reference",
+    "liked": "true",
+    "replied": "true",
+    "replyId": "1912345678907654321",
+    "replyToSubjectId": "1912345678901234567",
+    "replyTimestamp": "1767225600"
+  }
+}
