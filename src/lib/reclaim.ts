@@ -200,15 +200,15 @@ export async function createReclaimProofRequest(
         }
   );
 
-  const [requestUrl, mobileRequestUrl] = await Promise.all([
-    proofRequest.getRequestUrl({ verificationMode: "portal" }),
-    proofRequest.getRequestUrl({ verificationMode: "app" }),
-  ]);
+  const verifierAppUrl = await proofRequest.getRequestUrl({
+    verificationMode: "app",
+    canUseDeferredDeepLinksFlow: true,
+  });
 
   return {
     sessionId,
-    requestUrl,
-    mobileRequestUrl,
+    requestUrl: verifierAppUrl,
+    mobileRequestUrl: verifierAppUrl,
     statusUrl: proofRequest.getStatusUrl(),
     callbackUrl,
     redirectUrl,

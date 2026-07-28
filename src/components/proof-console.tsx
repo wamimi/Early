@@ -9,6 +9,7 @@ import {
   Radio,
   ReceiptText,
   ShieldCheck,
+  Smartphone,
 } from "lucide-react";
 import { Contract, BrowserProvider } from "ethers";
 import { QRCodeSVG } from "qrcode.react";
@@ -280,6 +281,8 @@ export function ProofConsole({
     session?.status === "verified" && session.discovery
       ? session.discovery
       : null;
+  const verifierAppUrl =
+    started?.mobileRequestUrl || session?.requestUrl || started?.requestUrl || "";
 
   return (
     <div className="proof-console">
@@ -316,15 +319,15 @@ export function ProofConsole({
 
         {started && !discovery && !result ? (
           <div className="reclaim-session">
-            <div className="qr-shell" aria-label="Reclaim verification QR code">
-              {session?.requestUrl || started.requestUrl ? (
-                <QRCodeSVG
-                  value={session?.requestUrl || started.requestUrl}
-                  size={164}
-                />
-              ) : (
-                <LockKeyhole size={36} />
-              )}
+            <div className="verifier-handoff">
+              <div className="qr-shell" aria-label="Reclaim Verifier app QR code">
+                {verifierAppUrl ? (
+                  <QRCodeSVG value={verifierAppUrl} size={164} />
+                ) : (
+                  <Smartphone size={36} />
+                )}
+              </div>
+              <span>Scan with your phone</span>
             </div>
             <div>
               <span className="status-badge">
@@ -333,10 +336,11 @@ export function ProofConsole({
                   ? "Verifying proof"
                   : "Waiting for Reclaim"}
               </span>
-              <h2>Continue on your device</h2>
+              <h2>Continue in Reclaim Verifier</h2>
               <p>
-                Open Reclaim, sign in to X, and approve the verification. Early
-                will update this page when the proof arrives.
+                Scan the code to open the Reclaim Verifier app, sign in to X,
+                and complete the verification there. Early will update this
+                page when the proof arrives.
               </p>
               {!auth.authenticated ? (
                 <button className="text-link" type="button" onClick={auth.login}>
@@ -346,15 +350,9 @@ export function ProofConsole({
               ) : (
                 <a
                   className="text-link"
-                  href={
-                    started.mobileRequestUrl ||
-                    session?.requestUrl ||
-                    started.requestUrl
-                  }
-                  target="_blank"
-                  rel="noreferrer"
+                  href={verifierAppUrl}
                 >
-                  Open verification
+                  Open Reclaim Verifier
                   <ExternalLink size={14} />
                 </a>
               )}

@@ -1217,6 +1217,17 @@ img {
   display: block;
 }
 
+.verifier-handoff {
+  display: grid;
+  justify-items: center;
+  gap: 0.55rem;
+}
+
+.verifier-handoff > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
 .reclaim-session > div:last-child {
   display: grid;
   justify-items: start;
