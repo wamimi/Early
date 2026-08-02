@@ -15,6 +15,7 @@
     "build:base": "cd contracts/base && forge build",
     "export:abis": "node scripts/export-contract-abis.mjs",
     "test:app": "vitest run",
+    "audit:x-proof": "node --no-warnings scripts/x-proof-conformance.mts",
     "test:e2e": "playwright test",
     "test:base": "cd contracts/base && forge test -vv",
     "test:zama": "pnpm --dir contracts/zama-private-receipt run test",

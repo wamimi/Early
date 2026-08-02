@@ -1,0 +1,39 @@
+{
+  "schema": "early.x-provider-conformance-manifest/v1",
+  "provider": {
+    "id": "fe0767e9-8172-48c0-ba64-702703c4c745",
+    "version": "1.0.0",
+    "providerHash": "0x4539b3d184875ce0ea3d12695a9857670bdb685891e4e4eaa9e5be8e16d92dd8",
+    "verificationType": "WITNESS"
+  },
+  "publishedFields": [
+    { "name": "screen_name", "type": "string", "role": "parentAuthorScreenName" },
+    { "name": "rest_id", "type": "string", "role": "parentAuthorAccountId" },
+    { "name": "conversation_id_str", "type": "string", "role": "parentConversationId" },
+    { "name": "favorited", "type": "string", "role": "parentFavoriteState" },
+    { "name": "id_str", "type": "string", "role": "parentPostId" },
+    { "name": "user_id_str", "type": "string", "role": "parentAuthorAccountId" },
+    { "name": "entryId", "type": "string", "role": "parentTimelineEntryId" },
+    { "name": "count", "type": "string", "role": "parentViewCount" },
+    { "name": "conversation_id_str_13369", "type": "string", "role": "replyConversationId" },
+    { "name": "created_at", "type": "string", "role": "replyTimestamp" },
+    { "name": "id_str_84642", "type": "string", "role": "replyId" },
+    { "name": "in_reply_to_screen_name", "type": "string", "role": "replyParentScreenName" },
+    { "name": "in_reply_to_status_id_str", "type": "string", "role": "replyParentPostId" },
+    { "name": "in_reply_to_user_id_str", "type": "string", "role": "replyParentAuthorAccountId" },
+    { "name": "user_id_str_62220", "type": "string", "role": "replyAuthorAccountId" },
+    { "name": "entryId_54976", "type": "string", "role": "replyTimelineEntryId" },
+    { "name": "rest_id_43767", "type": "string", "role": "replyId" }
+  ],
+  "requiredButNotPublished": [
+    {
+      "concept": "authenticatedViewerAccountId",
+      "reason": "Required to prove that the authenticated X account is the reply author."
+    }
+  ],
+  "notes": [
+    "This manifest contains public provider field names and types only.",
+    "It contains no proof signatures, cookies, X identifiers, post IDs, account IDs, or field values.",
+    "The synthetic replied boolean used by the current application is not published by provider version 1.0.0."
+  ]
+}

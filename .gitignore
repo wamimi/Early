@@ -24,6 +24,9 @@ fhevmTemp/
 .env.*
 !.env.example
 
+# Local proof inputs (never commit raw Reclaim proofs)
+.local/x-proof-conformance/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

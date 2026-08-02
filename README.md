@@ -157,6 +157,14 @@ pnpm test:base
 pnpm test:zama
 ```
 
+Before deploying the X receipt registry, run the local-only proof conformance
+harness described in [`docs/x-proof-conformance.md`](docs/x-proof-conformance.md).
+It verifies real proof artifacts in memory and emits a value-free report:
+
+```bash
+pnpm audit:x-proof -- --help
+```
+
 ## Environment
 
 See `.env.example` for the complete list. The important groups are:
@@ -232,6 +240,11 @@ The YouTube V2 provider must prove:
 Provider changes require a new version and configuration hash. Fixtures in
 `fixtures/providers` document the signed claim shape expected by application
 and contract tests.
+
+The currently published X provider version `1.0.0` does not disclose an
+authenticated-viewer account ID in its public field manifest. It must not be
+treated as satisfying the authenticated-account requirement until the
+conformance harness can establish viewer/reply-author equality.
 
 ## Security Invariants
 
