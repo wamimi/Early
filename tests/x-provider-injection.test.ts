@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test, vi } from "vitest";
 
 const injectionPath = fileURLToPath(
-  new URL("../scripts/reclaim/x-provider-v1.0.4-injection.js", import.meta.url)
+  new URL("../scripts/reclaim/x-provider-v1.0.5-injection.js", import.meta.url)
 );
 const injectionSource = readFileSync(injectionPath, "utf8");
 
@@ -63,16 +63,18 @@ function replyRequest() {
   };
 }
 
-describe("X provider v1.0.4 injection", () => {
-  test("replays only the authenticated X headers captured under request.options", async () => {
+describe("X provider v1.0.5 injection", () => {
+  test("replays safe X headers captured under request.options", async () => {
     const { middleware, requestClaim, reportProviderError } =
       createInjectionHarness();
     const headers = new Headers({
       Accept: "application/json",
       Authorization: "Bearer private",
       "X-CSRF-Token": "private-csrf",
+      "X-Client-Transaction-Id": "dynamic-transaction-id",
       "X-Twitter-Auth-Type": "OAuth2Session",
-      "X-Unused": "discard-me",
+      Cookie: "must-not-be-forwarded",
+      "Content-Length": "123",
     });
 
     await middleware(
@@ -91,7 +93,11 @@ describe("X provider v1.0.4 injection", () => {
     expect(claim.credentials).toBe("include");
     expect(claim.headers.authorization).toBe("Bearer private");
     expect(claim.headers["x-csrf-token"]).toBe("private-csrf");
-    expect(claim.headers["x-unused"]).toBeUndefined();
+    expect(claim.headers["x-client-transaction-id"]).toBe(
+      "dynamic-transaction-id"
+    );
+    expect(claim.headers.cookie).toBeUndefined();
+    expect(claim.headers["content-length"]).toBeUndefined();
   });
 
   test("stops before proof generation when authenticated headers are absent", async () => {

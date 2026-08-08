@@ -1,6 +1,6 @@
 (function () {
-  var guardKey = "__earlyReplyVerificationGuardV104";
-  var reloadKey = "early-reclaim-viewer-request-reload-v104";
+  var guardKey = "__earlyReplyVerificationGuardV105";
+  var reloadKey = "early-reclaim-viewer-request-reload-v105";
 
   function boot() {
     if (!window.Reclaim || !window.reclaimInterceptor) {
@@ -39,19 +39,17 @@
           request.requestHeaders ||
           (request.options && request.options.headers));
       var headers = {};
-      var allowedHeaders = {
-        accept: true,
-        authorization: true,
-        "content-type": true,
-        "x-csrf-token": true,
-        "x-twitter-active-user": true,
-        "x-twitter-auth-type": true,
-        "x-twitter-client-language": true,
+      var blockedHeaders = {
+        "accept-encoding": true,
+        connection: true,
+        "content-length": true,
+        cookie: true,
+        host: true,
       };
 
       function addHeader(name, value) {
         if (typeof name !== "string" || typeof value !== "string") return;
-        if (!allowedHeaders[name.toLowerCase()]) return;
+        if (blockedHeaders[name.toLowerCase()]) return;
         headers[name] = value;
       }
 
@@ -230,7 +228,7 @@
 
         return response;
       },
-      "early-reply-and-viewer-v104"
+      "early-reply-and-viewer-v105"
     );
   }
 
