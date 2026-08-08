@@ -21,7 +21,7 @@ describe("Reclaim Verifier app handoff", () => {
     vi.stubEnv("RECLAIM_APP_ID", "reclaim-app");
     vi.stubEnv("RECLAIM_APP_SECRET", "reclaim-secret");
     vi.stubEnv("RECLAIM_X_PROVIDER_ID", "x-provider");
-    vi.stubEnv("RECLAIM_X_PROVIDER_VERSION", "1.0.1");
+    vi.stubEnv("RECLAIM_X_PROVIDER_VERSION", "1.0.2");
     vi.stubEnv(
       "RECLAIM_X_PROVIDER_CONFIGURATION_HASH",
       `0x${"11".repeat(32)}`
@@ -41,7 +41,7 @@ describe("Reclaim Verifier app handoff", () => {
     }
     mocks.init.mockReset();
     mocks.init.mockResolvedValue({
-      getProviderVersion: () => ({ providerVersion: "1.0.1" }),
+      getProviderVersion: () => ({ providerVersion: "1.0.2" }),
       getSessionId: () => "session-1",
       getStatusUrl: () => "https://reclaim.example/status/session-1",
       getRequestUrl: mocks.getRequestUrl,
