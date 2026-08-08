@@ -44,7 +44,7 @@ function providerEnvironment(platform: DiscoveryPlatform) {
   const version =
     process.env[`${prefix}_PROVIDER_VERSION`] ??
     (platform === "x" ? process.env.RECLAIM_PROVIDER_VERSION : undefined) ??
-    (platform === "x" ? "1.0.2" : "1.0.0");
+    (platform === "x" ? "1.0.3" : "1.0.0");
 
   if (!id) {
     throw new Error(`Missing ${prefix}_PROVIDER_ID.`);
