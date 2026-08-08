@@ -2,8 +2,8 @@
   "schema": "early.x-provider-conformance-manifest/v1",
   "provider": {
     "id": "fe0767e9-8172-48c0-ba64-702703c4c745",
-    "version": "1.0.1",
-    "configurationHash": "0x89f23d56ed195721fe590c7a0199d24d40803cf38ef268e03b82208d0c400e8a",
+    "version": "1.0.2",
+    "configurationHash": "0x752daf83dac3994a5e2f69e433608553528f2b9e09f5353c0b9b72a9c390c107",
     "providerHashes": [
       "0x8e7188e68658202bd064f5b88e6ef23df249f2f9fd9d0fafb8bea60dccd97098",
       "0x7ae9e7cb8b638d1b6b114b392d0590bb6977d29bbd2070e109689d6afa5f61c4"
