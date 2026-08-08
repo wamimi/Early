@@ -67,7 +67,7 @@ function trustedData(
 describe("X proof conformance", () => {
   test("pins the manifest to the actual provider ID, version, hashes, and published shape", () => {
     const fixturePath = fileURLToPath(
-      new URL("../fixtures/providers/x-v1.0.4-conformance.json", import.meta.url)
+      new URL("../fixtures/providers/x-v1.0.5-conformance.json", import.meta.url)
     );
     const manifest = JSON.parse(readFileSync(fixturePath, "utf8"));
 

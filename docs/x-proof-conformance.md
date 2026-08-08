@@ -4,14 +4,14 @@ This local-only harness answers one narrow question before the Base registry is 
 
 > Does a cryptographically verified proof establish that the authenticated X viewer also authored the disclosed reply?
 
-It verifies each proof set in memory with Reclaim provider `fe0767e9-8172-48c0-ba64-702703c4c745`, exact version `1.0.4`, and both required Reclaim request hashes:
+It verifies each proof set in memory with Reclaim provider `fe0767e9-8172-48c0-ba64-702703c4c745`, exact version `1.0.5`, and both required Reclaim request hashes:
 
 - `0x8e7188e68658202bd064f5b88e6ef23df249f2f9fd9d0fafb8bea60dccd97098`
 - `0x7ae9e7cb8b638d1b6b114b392d0590bb6977d29bbd2070e109689d6afa5f61c4`
 
-Version `1.0.4` has two required requests: `TweetDetail` proves the parent and reply fields, while authenticated account settings proves `viewer_screen_name`. Only `TweetDetail` runs as a normal request. The provider script waits for a reply-focused `TweetDetail`, then creates the viewer claim through the required allowed-injected settings request using the authenticated request's authorization and CSRF headers. A complete verification is therefore expected to contain two proofs with the same Early session context. The harness merges only non-conflicting extracted fields and checks `viewer_screen_name == reply_author_screen_name` after canonicalizing case and an optional leading `@`.
+Version `1.0.5` has two required requests: `TweetDetail` proves the parent and reply fields, while authenticated account settings proves `viewer_screen_name`. Only `TweetDetail` runs as a normal request. The provider script waits for a reply-focused `TweetDetail`, then creates the viewer claim through the required allowed-injected settings request using the complete safe intercepted header set and the authenticated cookie session. A complete verification is therefore expected to contain two proofs with the same Early session context. The harness merges only non-conflicting extracted fields and checks `viewer_screen_name == reply_author_screen_name` after canonicalizing case and an optional leading `@`.
 
-Early's application-side provider configuration hash is `0x16b9fc7e37d61209f2d83802e6cfce494f61377052d1cf9ed1db1d8251c123b8`. It binds the provider ID, version, platform, and schema to an Early session. It is not a Reclaim proof `providerHash` and must not be substituted for either request hash above.
+Early's application-side provider configuration hash is `0xdb76bb8e162fc399e141014598275636830660fee7a64511ee86b5b21310a40c`. It binds the provider ID, version, platform, and schema to an Early session. It is not a Reclaim proof `providerHash` and must not be substituted for either request hash above.
 
 The report contains field names, field types, pass/fail checks, and equality results only. It never contains proof signatures, cookies, post IDs, account IDs, reply IDs, timestamps, context addresses, or extracted field values.
 
