@@ -4,7 +4,14 @@ This local-only harness answers one narrow question before the Base registry is 
 
 > Does a cryptographically verified proof establish that the authenticated X viewer also authored the disclosed reply?
 
-It verifies each raw proof in memory with Reclaim provider `fe0767e9-8172-48c0-ba64-702703c4c745`, exact version `1.0.0`, and pinned provider hash `0x4539b3d184875ce0ea3d12695a9857670bdb685891e4e4eaa9e5be8e16d92dd8`.
+It verifies each proof set in memory with Reclaim provider `fe0767e9-8172-48c0-ba64-702703c4c745`, exact version `1.0.1`, and both required Reclaim request hashes:
+
+- `0x8e7188e68658202bd064f5b88e6ef23df249f2f9fd9d0fafb8bea60dccd97098`
+- `0x7ae9e7cb8b638d1b6b114b392d0590bb6977d29bbd2070e109689d6afa5f61c4`
+
+Version `1.0.1` has two required requests: `TweetDetail` proves the parent and reply fields, while authenticated account settings proves `viewer_screen_name`. A complete verification is therefore expected to contain two proofs with the same Early session context. The harness merges only non-conflicting extracted fields and checks `viewer_screen_name == reply_author_screen_name` after canonicalizing case and an optional leading `@`.
+
+Early's application-side provider configuration hash is `0x89f23d56ed195721fe590c7a0199d24d40803cf38ef268e03b82208d0c400e8a`. It binds the provider ID, version, platform, and schema to an Early session. It is not a Reclaim proof `providerHash` and must not be substituted for either request hash above.
 
 The report contains field names, field types, pass/fail checks, and equality results only. It never contains proof signatures, cookies, post IDs, account IDs, reply IDs, timestamps, context addresses, or extracted field values.
 
@@ -51,6 +58,6 @@ pnpm audit:x-proof -- \
 
 `--adversarial-no-proof` records a manual observation. It cannot independently prove why Reclaim refused or timed out, so the report labels that result accordingly and does not mark the complete claim ready.
 
-The command intentionally exits with status `1` whenever the observed schema cannot establish every required relationship. With the currently published provider fields, `AUTHENTICATED_ACCOUNT_ID_MISSING` is the expected blocker. A nonzero exit is a security result, not a harness crash.
+The command intentionally exits with status `1` whenever the observed schema cannot establish every required relationship. For an own-reply proof, missing `viewer_screen_name`, missing `reply_author_screen_name`, a mismatch between them, a missing request proof, or any other failed relationship is a security failure. A nonzero exit is a security result, not a harness crash.
 
 The output file is created with owner-only permissions and is never overwritten. Delete or archive the raw local files after completing the investigation.

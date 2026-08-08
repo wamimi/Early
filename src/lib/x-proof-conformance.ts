@@ -2,9 +2,13 @@ import { verifyProof, type Proof } from "@reclaimprotocol/js-sdk";
 
 export const X_CONFORMANCE_PROVIDER = {
   id: "fe0767e9-8172-48c0-ba64-702703c4c745",
-  version: "1.0.0",
-  providerHash:
-    "0x4539b3d184875ce0ea3d12695a9857670bdb685891e4e4eaa9e5be8e16d92dd8",
+  version: "1.0.1",
+  configurationHash:
+    "0x89f23d56ed195721fe590c7a0199d24d40803cf38ef268e03b82208d0c400e8a",
+  providerHashes: [
+    "0x8e7188e68658202bd064f5b88e6ef23df249f2f9fd9d0fafb8bea60dccd97098",
+    "0x7ae9e7cb8b638d1b6b114b392d0590bb6977d29bbd2070e109689d6afa5f61c4",
+  ],
 } as const;
 
 export type XConformanceScenario = "own-reply" | "different-account-reply";
@@ -35,9 +39,11 @@ export type XProofConformanceReport = {
   provider: {
     id: typeof X_CONFORMANCE_PROVIDER.id;
     version: typeof X_CONFORMANCE_PROVIDER.version;
-    expectedProviderHash: typeof X_CONFORMANCE_PROVIDER.providerHash;
+    configurationHash: typeof X_CONFORMANCE_PROVIDER.configurationHash;
+    expectedProviderHashes: typeof X_CONFORMANCE_PROVIDER.providerHashes;
   };
   cryptographicProofVerified: true;
+  proofCount: number;
   fieldInventory: Array<{ name: string; type: string }>;
   evidence: {
     providerHash: XConformanceEvidence;
@@ -85,6 +91,11 @@ const fields = {
   replyId: ["id_str_84642", "rest_id_43767"],
   replyTimestamp: ["created_at"],
   replyAuthor: ["user_id_str_62220", "replyAuthorId", "reply_author_id"],
+  replyAuthorScreenName: [
+    "reply_author_screen_name",
+    "replyAuthorScreenName",
+    "reply_author_screenName",
+  ],
   authenticatedAccount: [
     "authenticatedAccountId",
     "authenticated_account_id",
@@ -94,6 +105,12 @@ const fields = {
     "viewer_user_id",
     "viewerId",
     "viewer_id",
+  ],
+  authenticatedAccountScreenName: [
+    "viewer_screen_name",
+    "viewerScreenName",
+    "authenticatedScreenName",
+    "authenticated_screen_name",
   ],
 } as const;
 
@@ -159,6 +176,32 @@ function validTimestamp(value: unknown) {
   return !Number.isNaN(Date.parse(stringValue));
 }
 
+function canonicalScreenName(value: unknown) {
+  const stringValue = asNonemptyString(value)?.replace(/^@/, "");
+  if (!stringValue || !/^[A-Za-z0-9_]{1,15}$/.test(stringValue)) return null;
+  return stringValue.toLowerCase();
+}
+
+function valuesMatch(left: unknown, right: unknown) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function mergeExtractedParameters(items: TrustedProofData[]) {
+  const merged: JsonRecord = {};
+  for (const item of items) {
+    for (const [field, value] of Object.entries(item.extractedParameters)) {
+      if (field in merged && !valuesMatch(merged[field], value)) {
+        throw new XProofConformanceError(
+          "CONFLICTING_EXTRACTED_FIELD",
+          `Verified proofs disclosed conflicting values for ${field}.`
+        );
+      }
+      merged[field] = value;
+    }
+  }
+  return merged;
+}
+
 function check(
   status: XConformanceStatus,
   evidenceFields: Array<string | null>,
@@ -213,15 +256,27 @@ export function getProofsForConformance(payload: unknown): Proof[] {
 
 export function analyzeTrustedXProofData(input: {
   scenario: XConformanceScenario;
-  trustedData: TrustedProofData;
+  trustedData: TrustedProofData | TrustedProofData[];
   expectedSubjectId?: string;
 }): XProofConformanceReport {
-  const { context, extractedParameters } = input.trustedData;
+  const trustedData = Array.isArray(input.trustedData)
+    ? input.trustedData
+    : [input.trustedData];
+  if (trustedData.length === 0) {
+    throw new XProofConformanceError(
+      "TRUSTED_DATA_MISSING",
+      "Reclaim returned no trusted proof data."
+    );
+  }
+  const context = trustedData[0].context;
+  const extractedParameters = mergeExtractedParameters(trustedData);
   const message = parseContextMessage(context);
   const expectedSubjectId =
     asNonemptyString(input.expectedSubjectId) ?? asNonemptyString(message.subjectId);
 
-  const providerHash = findField(context, fields.providerHash);
+  const providerHashes = trustedData.map((item) =>
+    findField(item.context, fields.providerHash)
+  );
   const favorite = findField(extractedParameters, fields.favorite);
   const parentPost = findField(extractedParameters, fields.parentPost);
   const replyParent = findField(extractedParameters, fields.replyParent);
@@ -229,9 +284,17 @@ export function analyzeTrustedXProofData(input: {
   const replyId = findField(extractedParameters, fields.replyId);
   const replyTimestamp = findField(extractedParameters, fields.replyTimestamp);
   const replyAuthor = findField(extractedParameters, fields.replyAuthor);
+  const replyAuthorScreenName = findField(
+    extractedParameters,
+    fields.replyAuthorScreenName
+  );
   const authenticatedAccount = findField(
     extractedParameters,
     fields.authenticatedAccount
+  );
+  const authenticatedAccountScreenName = findField(
+    extractedParameters,
+    fields.authenticatedAccountScreenName
   );
 
   const alternateReplyId = findField(
@@ -241,19 +304,42 @@ export function analyzeTrustedXProofData(input: {
   const replyIdValue = asNonemptyString(replyId.value);
   const alternateReplyIdValue = asNonemptyString(alternateReplyId.value);
   const replyAuthorValue = asNonemptyString(replyAuthor.value);
+  const replyAuthorScreenNameValue = asNonemptyString(replyAuthorScreenName.value);
   const authenticatedAccountValue = asNonemptyString(authenticatedAccount.value);
-  const observedProviderHash = asNonemptyString(providerHash.value)?.toLowerCase();
+  const authenticatedAccountScreenNameValue = asNonemptyString(
+    authenticatedAccountScreenName.value
+  );
+  const observedProviderHashes = providerHashes
+    .map((item) => asNonemptyString(item.value)?.toLowerCase())
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const expectedProviderHashes = [...X_CONFORMANCE_PROVIDER.providerHashes].sort();
+  const providerHashesMatch =
+    observedProviderHashes.length === expectedProviderHashes.length &&
+    observedProviderHashes.every(
+      (value, index) => value === expectedProviderHashes[index]
+    );
+  const normalizedReplyAuthorScreenName = canonicalScreenName(
+    replyAuthorScreenNameValue
+  );
+  const normalizedAuthenticatedScreenName = canonicalScreenName(
+    authenticatedAccountScreenNameValue
+  );
 
   const checks = {
     providerHashMatches:
-      observedProviderHash === X_CONFORMANCE_PROVIDER.providerHash
-        ? check("pass", [providerHash.field], "The proof uses the expected Reclaim provider hash.")
+      providerHashesMatch
+        ? check(
+            "pass",
+            providerHashes.map((item) => item.field),
+            "The proof set uses both expected Reclaim request hashes."
+          )
         : check(
-            providerHash.evidence.present ? "fail" : "missing",
-            [providerHash.field],
-            providerHash.evidence.present
-              ? "The proof provider hash does not match the pinned X provider."
-              : "The verified proof context does not expose a provider hash."
+            observedProviderHashes.length > 0 ? "fail" : "missing",
+            providerHashes.map((item) => item.field),
+            observedProviderHashes.length > 0
+              ? "The proof set does not match both pinned X request hashes."
+              : "The verified proof contexts do not expose provider hashes."
           ),
     favoriteIsTrue:
       asBoolean(favorite.value) === true
@@ -324,28 +410,32 @@ export function analyzeTrustedXProofData(input: {
           [replyTimestamp.field],
           "The proof does not expose a valid reply timestamp."
         ),
-    replyAuthorIsPresent: replyAuthorValue
-      ? check("pass", [replyAuthor.field], "The proof exposes the reply author's account ID.")
-      : check("missing", [replyAuthor.field], "The proof does not expose the reply author ID."),
-    authenticatedAccountIsPresent: authenticatedAccountValue
+    replyAuthorIsPresent: replyAuthorValue || replyAuthorScreenNameValue
       ? check(
           "pass",
-          [authenticatedAccount.field],
-          "The proof exposes the authenticated viewer's account ID."
+          [replyAuthor.field, replyAuthorScreenName.field],
+          "The proof exposes the reply author's account."
         )
       : check(
           "missing",
-          [authenticatedAccount.field],
-          "The proof does not expose the authenticated viewer's account ID."
+          [replyAuthor.field, replyAuthorScreenName.field],
+          "The proof does not expose the reply author."
+        ),
+    authenticatedAccountIsPresent:
+      authenticatedAccountValue || authenticatedAccountScreenNameValue
+      ? check(
+          "pass",
+          [authenticatedAccount.field, authenticatedAccountScreenName.field],
+          "The proof exposes the authenticated viewer's account."
+        )
+      : check(
+          "missing",
+          [authenticatedAccount.field, authenticatedAccountScreenName.field],
+          "The proof does not expose the authenticated viewer's account."
         ),
     authenticatedAccountEqualsReplyAuthor:
-      !authenticatedAccountValue || !replyAuthorValue
-        ? check(
-            "missing",
-            [authenticatedAccount.field, replyAuthor.field],
-            "Authenticated-viewer/reply-author equality cannot be established."
-          )
-        : authenticatedAccountValue === replyAuthorValue
+      authenticatedAccountValue && replyAuthorValue
+        ? authenticatedAccountValue === replyAuthorValue
           ? check(
               "pass",
               [authenticatedAccount.field, replyAuthor.field],
@@ -355,6 +445,28 @@ export function analyzeTrustedXProofData(input: {
               "fail",
               [authenticatedAccount.field, replyAuthor.field],
               "The authenticated viewer is not the reply author."
+            )
+        : normalizedAuthenticatedScreenName && normalizedReplyAuthorScreenName
+          ? normalizedAuthenticatedScreenName === normalizedReplyAuthorScreenName
+            ? check(
+                "pass",
+                [authenticatedAccountScreenName.field, replyAuthorScreenName.field],
+                "The authenticated viewer is the reply author."
+              )
+            : check(
+                "fail",
+                [authenticatedAccountScreenName.field, replyAuthorScreenName.field],
+                "The authenticated viewer is not the reply author."
+              )
+          : check(
+              "missing",
+              [
+                authenticatedAccount.field,
+                authenticatedAccountScreenName.field,
+                replyAuthor.field,
+                replyAuthorScreenName.field,
+              ],
+              "Authenticated-viewer/reply-author equality cannot be established."
             ),
   } satisfies XProofConformanceReport["checks"];
 
@@ -394,22 +506,36 @@ export function analyzeTrustedXProofData(input: {
     provider: {
       id: X_CONFORMANCE_PROVIDER.id,
       version: X_CONFORMANCE_PROVIDER.version,
-      expectedProviderHash: X_CONFORMANCE_PROVIDER.providerHash,
+      configurationHash: X_CONFORMANCE_PROVIDER.configurationHash,
+      expectedProviderHashes: X_CONFORMANCE_PROVIDER.providerHashes,
     },
     cryptographicProofVerified: true,
+    proofCount: trustedData.length,
     fieldInventory: Object.entries(extractedParameters)
       .map(([name, value]) => ({ name, type: valueType(value) }))
       .sort((left, right) => left.name.localeCompare(right.name)),
     evidence: {
-      providerHash: providerHash.evidence,
+      providerHash: {
+        field: providerHashes.some((item) => item.evidence.present)
+          ? "providerHash"
+          : null,
+        present: providerHashes.every((item) => item.evidence.present),
+        type: providerHashes.every((item) => item.evidence.type === "string")
+          ? "string"
+          : null,
+      },
       favorite: favorite.evidence,
       parentPost: parentPost.evidence,
       replyParent: replyParent.evidence,
       replyConversation: replyConversation.evidence,
       replyId: replyId.evidence,
       replyTimestamp: replyTimestamp.evidence,
-      replyAuthor: replyAuthor.evidence,
-      authenticatedAccount: authenticatedAccount.evidence,
+      replyAuthor: replyAuthorScreenName.evidence.present
+        ? replyAuthorScreenName.evidence
+        : replyAuthor.evidence,
+      authenticatedAccount: authenticatedAccountScreenName.evidence.present
+        ? authenticatedAccountScreenName.evidence
+        : authenticatedAccount.evidence,
     },
     checks,
     secureClaimAccepted: failureCodes.length === 0,
@@ -441,27 +567,40 @@ export async function verifyAndAnalyzeXProof(input: {
       "Reclaim rejected the proof for the pinned X provider and version."
     );
   }
-  if (verification.data.length !== 1) {
+  if (verification.data.length !== X_CONFORMANCE_PROVIDER.providerHashes.length) {
     throw new XProofConformanceError(
       "UNEXPECTED_PROOF_COUNT",
-      "The current X provider must produce exactly one verified proof."
+      "The X provider must produce one verified proof for each of its two required requests."
     );
   }
 
-  const trusted = verification.data[0];
-  if (!isRecord(trusted.context) || !isRecord(trusted.extractedParameters)) {
-    throw new XProofConformanceError(
-      "TRUSTED_DATA_MALFORMED",
-      "Reclaim returned malformed trusted proof data."
-    );
+  const trustedData = verification.data.map((trusted) => {
+    if (!isRecord(trusted.context) || !isRecord(trusted.extractedParameters)) {
+      throw new XProofConformanceError(
+        "TRUSTED_DATA_MALFORMED",
+        "Reclaim returned malformed trusted proof data."
+      );
+    }
+    return {
+      context: trusted.context,
+      extractedParameters: trusted.extractedParameters,
+    };
+  });
+  const baselineContext = trustedData[0].context;
+  for (const item of trustedData.slice(1)) {
+    for (const field of ["contextAddress", "reclaimSessionId", "contextMessage"]) {
+      if (!valuesMatch(item.context[field], baselineContext[field])) {
+        throw new XProofConformanceError(
+          "PROOF_CONTEXT_MISMATCH",
+          "The verified proofs are not bound to the same Early session context."
+        );
+      }
+    }
   }
 
   return analyzeTrustedXProofData({
     scenario: input.scenario,
-    trustedData: {
-      context: trusted.context,
-      extractedParameters: trusted.extractedParameters,
-    },
+    trustedData,
     expectedSubjectId: input.expectedSubjectId,
   });
 }

@@ -1,0 +1,50 @@
+{
+  "schema": "early.x-provider-conformance-manifest/v1",
+  "provider": {
+    "id": "fe0767e9-8172-48c0-ba64-702703c4c745",
+    "version": "1.0.1",
+    "configurationHash": "0x89f23d56ed195721fe590c7a0199d24d40803cf38ef268e03b82208d0c400e8a",
+    "providerHashes": [
+      "0x8e7188e68658202bd064f5b88e6ef23df249f2f9fd9d0fafb8bea60dccd97098",
+      "0x7ae9e7cb8b638d1b6b114b392d0590bb6977d29bbd2070e109689d6afa5f61c4"
+    ],
+    "verificationType": "WITNESS",
+    "requestCount": 2
+  },
+  "publishedFields": [
+    { "name": "screen_name", "type": "string", "role": "parentAuthorScreenName" },
+    { "name": "rest_id", "type": "string", "role": "parentAuthorAccountId" },
+    { "name": "conversation_id_str", "type": "string", "role": "parentConversationId" },
+    { "name": "favorited", "type": "string", "role": "parentFavoriteState" },
+    { "name": "id_str", "type": "string", "role": "parentPostId" },
+    { "name": "user_id_str", "type": "string", "role": "parentAuthorAccountId" },
+    { "name": "entryId", "type": "string", "role": "parentTimelineEntryId" },
+    { "name": "count", "type": "string", "role": "parentViewCount" },
+    { "name": "conversation_id_str_13369", "type": "string", "role": "replyConversationId" },
+    { "name": "created_at", "type": "string", "role": "replyTimestamp" },
+    { "name": "id_str_84642", "type": "string", "role": "replyId" },
+    { "name": "in_reply_to_screen_name", "type": "string", "role": "replyParentScreenName" },
+    { "name": "in_reply_to_status_id_str", "type": "string", "role": "replyParentPostId" },
+    { "name": "in_reply_to_user_id_str", "type": "string", "role": "replyParentAuthorAccountId" },
+    { "name": "user_id_str_62220", "type": "string", "role": "replyAuthorAccountId" },
+    { "name": "entryId_54976", "type": "string", "role": "replyTimelineEntryId" },
+    { "name": "rest_id_43767", "type": "string", "role": "replyId" },
+    { "name": "reply_author_screen_name", "type": "string", "role": "replyAuthorScreenName" },
+    { "name": "viewer_screen_name", "type": "string", "role": "authenticatedViewerScreenName" }
+  ],
+  "requiredRelationships": [
+    "viewer_screen_name == reply_author_screen_name",
+    "favorited == true",
+    "id_str == submitted parent post ID",
+    "in_reply_to_status_id_str == submitted parent post ID",
+    "conversation_id_str_13369 == submitted parent post ID",
+    "id_str_84642 == rest_id_43767",
+    "created_at is a valid timestamp"
+  ],
+  "notes": [
+    "This manifest contains public provider field names and types only.",
+    "The provider has two required requests, so a complete verification is expected to contain two proofs.",
+    "The configuration hash is Early's application-side session commitment, not a Reclaim provider hash.",
+    "It contains no proof signatures, cookies, X identifiers, post IDs, account IDs, or field values."
+  ]
+}
